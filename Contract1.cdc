@@ -8,11 +8,11 @@
 
 access(all) contract LavaFlow {
 
-    /***********************
-    LAVA FLOW WORLD STATE
-    ************************/
-
-    // Here are all the declared entities, components, and systems
+    /**************************************************************
+    * LAVA FLOW WORLD STATE
+    *
+    * Here are all the declared entities, components, and systems
+    ***************************************************************/
 
     // Entities references all existing interactive models in the Lava Flow universe
     // Systems will reference Entities here to access Components
@@ -32,12 +32,12 @@ access(all) contract LavaFlow {
     pub let tileComponents: {UInt64: &TileComponent}
     pub let questComponents: {UInt64: &QuestComponent}
 
-    /************
-    COMPONENTS
-    *************/
-
-    // Components are the individual resources that belong in the game world
-    // It captures the state of the world
+    /************************************************************************
+    * COMPONENTS
+    *
+    * Components are the individual resources that belong in the game world
+    * It captures the state of the world
+    *************************************************************************/
 
     // PlayerComponent is an individual character that exists in the game world
     pub resource PlayerComponent {
@@ -118,20 +118,14 @@ access(all) contract LavaFlow {
         
     }
 
-    // Systems
-    //
-    // To handle new resources, should we have the systems create the resources? 
-    // Or should it sit off the contract itself?
+    /************************************************************************
+    * SYSTEMS
+    *
+    * Handles state changes in the game world
+    *************************************************************************/
 
-    pub struct interface System {
-
-    }
-    
-    
     // TurnPhaseSystem handles all work around player movement and player turn rotation
-    pub struct TurnPhaseSystem {
-        
-    }
+    pub struct TurnPhaseSystem {}
     
     // PlayerSystem manages character state, namely attributes and effects
     pub struct PlayerSystem {
@@ -145,16 +139,10 @@ access(all) contract LavaFlow {
     }
 
     // QuestSystem handles all work around quest interactions
-    pub struct QuestSystem {
-        
-    }
+    pub struct QuestSystem {}
     
     // ItemSystem handles all work around item interactions
-    pub struct ItemSystem {
-        
-    }
-
-
+    pub struct ItemSystem {}
 
     // initialize the entities, components, and systems for Lava Flow
     init() {
@@ -173,7 +161,5 @@ access(all) contract LavaFlow {
         self.itemSystem = ItemSystem()
     }
 
-    
-    
 }
  
