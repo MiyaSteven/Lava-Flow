@@ -77,19 +77,55 @@ access(all) contract LavaFlow {
         }
     }
 
-    // PlayerCollection holds all the PlayerComponents
-    pub resource PlayerCollection {
-        pub let collection: @{UInt64: PlayerComponent}
+    // Players holds all the PlayerComponents
+    pub resource Players {
+        pub let players: @{UInt64: PlayerComponent}
 
         init() {
-            self.collection <- {}
+            self.players <- {}
         }
 
         destroy() {
-            destroy self.collection
+            destroy self.players
+        }
+    }
+
+    // ItemCollection holds all the ItemComponents
+    pub resource Items {
+        pub let items: @{UInt64: ItemComponent}
+
+        init() {
+            self.items <- {}
+        }
+
+        destroy() {
+            destroy self.items
+        }
+    }
+
+    pub resource Gameboard {
+        pub let tiles: @{UInt64: TileComponent}
+
+        init() {
+            self.tiles <- {}
+        }
+
+        destroy() {
+            destroy self.tiles
         }
     }
     
+    pub resource Quests {
+        pub let quests: @{UInt64: QuestComponent}
+
+        init() {
+            self.quests <- {}
+        }
+
+        destroy() {
+            destroy self.quests
+        }
+    }
     // Units are an internal data structure for entities that reside within the Tile
     pub struct Unit {
         pub let entityType: String
@@ -133,8 +169,8 @@ access(all) contract LavaFlow {
             return <-create PlayerComponent(id: 1, name: "Guest Character", class: "swashbuckler", intelligence: UInt64(1), strength: UInt64(1), cunning: UInt64(1))
         }
 
-        pub fun PlayerCollection(): @PlayerCollection {
-            return <-create PlayerCollection()
+        pub fun Players(): @Players {
+            return <-create Players()
         }
     }
 
