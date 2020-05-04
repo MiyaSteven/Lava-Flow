@@ -6,7 +6,7 @@
 // https://aframe.io/docs/1.0.0/introduction/entity-component-system.html
 // https://en.wikipedia.org/wiki/Entity_component_system
 
-access(all) contract LavaFlow {
+pub contract LavaFlow {
 
     /**************************************************************
     * LAVA FLOW WORLD STATE
@@ -27,10 +27,10 @@ access(all) contract LavaFlow {
     pub let itemSystem: ItemSystem
     
     // Component maps hold references to Components that exist in the game world
-    pub let playerComponents: {UInt64: &PlayerComponent}
-    pub let itemComponents: {UInt64: &ItemComponent}
-    pub let tileComponents: {UInt64: &TileComponent}
-    pub let questComponents: {UInt64: &QuestComponent}
+    pub let players: {UInt64: &Player}
+    pub let items: {UInt64: &Item}
+    pub let tiles: {UInt64: &Tile}
+    pub let quests: {UInt64: &Quest}
 
     /************************************************************************
     * COMPONENTS
@@ -39,8 +39,8 @@ access(all) contract LavaFlow {
     * It captures the state of the world
     *************************************************************************/
 
-    // PlayerComponent is an individual character that exists in the game world
-    pub resource PlayerComponent {
+    // Player is an individual character that exists in the game world
+    pub resource Player {
         pub let id: UInt64
         pub let name: String
         pub let class: String
@@ -58,8 +58,8 @@ access(all) contract LavaFlow {
         }
     }
     
-    // ItemComponent is an individual item that exists in the game world 
-    pub resource ItemComponent {
+    // Item is an individual item that exists in the game world 
+    pub resource Item {
         pub let id: UInt64
         pub let name: String
         pub let points: UInt64
@@ -77,19 +77,57 @@ access(all) contract LavaFlow {
         }
     }
 
-    // PlayerCollection holds all the PlayerComponents
-    pub resource PlayerCollection {
-        pub let collection: @{UInt64: PlayerComponent}
+    // Players owns all the individual Player data
+    pub resource Players {
+        pub let players: @{UInt64: Player}
 
         init() {
-            self.collection <- {}
+            self.players <- {}
         }
 
         destroy() {
-            destroy self.collection
+            destroy self.players
+        }
+    }
+
+    // ItemCollection owns all the individual Item data
+    pub resource Items {
+        pub let items: @{UInt64: Item}
+
+        init() {
+            self.items <- {}
+        }
+
+        destroy() {
+            destroy self.items
+        }
+    }
+
+    // Gameboard owns all the individual Tile data
+    pub resource Gameboard {
+        pub let tiles: @{UInt64: Tile}
+
+        init() {
+            self.tiles <- {}
+        }
+
+        destroy() {
+            destroy self.tiles
         }
     }
     
+    // Quests is a collection of all the quests
+    pub resource Quests {
+        pub let quests: @{UInt64: Quest}
+
+        init() {
+            self.quests <- {}
+        }
+
+        destroy() {
+            destroy self.quests
+        }
+    }
     // Units are an internal data structure for entities that reside within the Tile
     pub struct Unit {
         pub let entityType: String
@@ -103,7 +141,7 @@ access(all) contract LavaFlow {
     
     // TileComponent represents spaces in the game world
     // It references entities that are within a certain space
-    pub resource TileComponent {
+    pub resource Tile {
         pub let id: UInt64
         pub let contains: [Unit]
 
@@ -114,7 +152,7 @@ access(all) contract LavaFlow {
     }
 
     // QuestComponent is an individual Quest that exists in the game world
-    pub resource QuestComponent {
+    pub resource Quest {
         
     }
 
@@ -129,12 +167,12 @@ access(all) contract LavaFlow {
     
     // PlayerSystem manages character state, namely attributes and effects
     pub struct PlayerSystem {
-        pub fun newPlayer(): @PlayerComponent {
-            return <-create PlayerComponent(id: 1, name: "Guest Character", class: "swashbuckler", intelligence: UInt64(1), strength: UInt64(1), cunning: UInt64(1))
+        pub fun newPlayer(): @Player {
+            return <-create Player(id: 1, name: "Guest Character", class: "swashbuckler", intelligence: UInt64(1), strength: UInt64(1), cunning: UInt64(1))
         }
 
-        pub fun PlayerCollection(): @PlayerCollection {
-            return <-create PlayerCollection()
+        pub fun Players(): @Players {
+            return <-create Players()
         }
     }
 
@@ -150,10 +188,10 @@ access(all) contract LavaFlow {
         self.itemEntities = []
         self.tileEntities = []
 
-        self.playerComponents = {}
-        self.itemComponents = {}
-        self.tileComponents = {}
-        self.questComponents = {}
+        self.players = {}
+        self.items = {}
+        self.tiles = {}
+        self.quests = {}
         
         self.turnPhaseSystem = TurnPhaseSystem()
         self.playerSystem = PlayerSystem()
