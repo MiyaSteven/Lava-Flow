@@ -1,0 +1,10 @@
+{
+	"accounts": {
+		"root": {
+			"address": "0000000000000000000000000000000000000001",
+			"privateKey": "fcb68f423d3974d8ed4521fc2293be25a0bd43fc8cbfd2e411bc9ca77615e36e",
+			"sigAlgorithm": "ECDSA_P256",
+			"hashAlgorithm": "SHA3_256"
+		}
+	}
+}
