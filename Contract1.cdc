@@ -9,16 +9,17 @@
 pub contract LavaFlow {
 
     /**************************************************************
-    * LAVA FLOW WORLD STATE
-    *
+    * LAVA FLOW WORLD STATE 
+    * 
     * Here are all the declared entities, components, and systems
     ***************************************************************/
 
-    // Entities references all existing interactive models in the Lava Flow universe
-    // Systems will reference Entities here to access Components
-    pub let playerEntities: [UInt64]
-    pub let itemEntities: [UInt64]
-    pub let tileEntities: [UInt64]
+    // // ENTITIES = THINGS IN THE GAME
+    // // Entities references all existing interactive models in the Lava Flow universe
+    // // Systems will reference Entities here to access Components
+    // pub let playerEntities: {} // 2, 0, 1
+    // pub let itemEntities: [UInt64]
+    // pub let tileEntities: [UInt64]
 
     // Systems act upon the game world state (Components), reading and updating as necessary
     pub let turnPhaseSystem: TurnPhaseSystem
@@ -27,17 +28,27 @@ pub contract LavaFlow {
     pub let itemSystem: ItemSystem
     
     // Component maps hold references to Components that exist in the game world
-    pub let players: {UInt64: &Player}
-    pub let items: {UInt64: &Item}
-    pub let tiles: {UInt64: &Tile}
-    pub let quests: {UInt64: &Quest}
-
+    pub let players: @{UInt64: Player}
+    pub let items: @{UInt64: Item}
+    pub let tiles: @{UInt64: Tile}
+    pub let quests: @{UInt64: Quest}
+    
+    pub let rng: RNG
     /************************************************************************
-    * COMPONENTS
+    * COMPONENTS === GAME STATE
     *
     * Components are the individual resources that belong in the game world
     * It captures the state of the world
     *************************************************************************/
+
+    // currentPlayerIndex points to the turn's current player
+    pub let currentPlayerIndex: Int // 0...4
+    
+    // playerOrder is a queue of players that have joined the game
+    pub let playerOrder: [UInt64]
+
+    // gameboard is the order of tiles laid out for movement
+    pub let gameboard: [UInt64]
 
     // Player is an individual character that exists in the game world
     pub resource Player {
@@ -47,6 +58,8 @@ pub contract LavaFlow {
         pub let intelligence: UInt64
         pub let strength: UInt64
         pub let cunning: UInt64
+        pub let equipments: @[AnyResource] // items of type and attributes, max 5 resources
+
 
         init(id: UInt64, name: String, class: String, intelligence: UInt64, strength: UInt64, cunning: UInt64) {
             self.id = id
@@ -55,6 +68,12 @@ pub contract LavaFlow {
             self.intelligence = intelligence
             self.strength = strength
             self.cunning = cunning
+            self.equipments <- []
+        }
+
+
+        destroy() {
+            destroy self.equipments
         }
     }
 
@@ -117,6 +136,12 @@ pub contract LavaFlow {
             self.id = id
             self.contains = []
         }
+
+        pub fun addUnit() {
+            // self.contains.push(Unit(entityType: "Player", entityID: UInt64(1)))
+        }
+
+        pub fun removeUnit() {}
     }
 
     // Players owns all the individual Player data
@@ -179,7 +204,7 @@ pub contract LavaFlow {
 
     // TurnPhaseSystem handles all work around player movement and player turn rotation
     pub struct TurnPhaseSystem {
-        pub fun nextTurn(): @[playerEntities]
+        // pub fun nextTurn(): @[playerEntities]
     }
     
     // PlayerSystem manages character state, namely attributes and effects
@@ -191,29 +216,189 @@ pub contract LavaFlow {
         pub fun Players(): @Players {
             return <-create Players()
         }
+
+        pub fun movePlayer(id: UInt64) {
+            // 1. get the player id
+            // 2. check if id exists in the game world
+            // 3. update the tile that contains the player
+        }
+
+        pub fun readAttributes() {
+            // sum the attributes of all the player's base attributes and their equipments by type (intell, strength, cunning)
+        }
+    }
+
+    pub resource interface TileReceiver {
+
+      pub fun deposit(token: @Tile)
+
+      pub fun getIDs(): [UInt64]
+
+      pub fun idExists(id: UInt64): Bool
+    }
+
+
+    pub resource TileMinter {
+
+        // the ID that is used to mint NFTs
+        // it is onlt incremented so that NFT ids remain
+        // unique. It also keeps track of the total number of NFTs
+        // in existence
+        pub var idCount: UInt64
+
+        init() {
+            self.idCount = 1
+        }
+
+        // mintNFT 
+        //
+        // Function that mints a new NFT with a new ID
+        // and deposits it in the recipients collection 
+        // using their collection reference
+        pub fun mintTile(recipient: &AnyResource{TileReceiver}) {
+
+            // create a new NFT
+            // var newTile <- create Tile(initID: self.idCount)
+
+            // deposit it in the recipient's account using their reference
+            // recipient.deposit(token: <-newTile)
+
+            // change the id so that each ID is unique
+            self.idCount = self.idCount + UInt64(1)
+        }
     }
 
     // QuestSystem handles all work around quest interactions
-    pub struct QuestSystem {}
-    
+    pub struct QuestSystem {
+        pub fun completeQuest() {
+            // 1. get the quest
+            // var q1 = LavaFlow.quests[UInt64(5)]
+            // 2. get reference to player
+            var currentPlayerID = LavaFlow.playerOrder[LavaFlow.currentPlayerIndex]
+            // if playerRef.intel >= q1.req.intel && playerRef.strenght >= q1.req.strength
+            // => players win
+            // Run RNG => if rng == 1
+            // Mint new equipment  let equipement <- LavaFlow.itemMinter.mint()?
+            // playerRef.equipment.push(<-equipment)
+
+            
+            let chance = LavaFlow.rng.runRNG(100)
+            if(chance == UInt64(0)){
+                // move the resource out from collection to act upon it
+                let player <- LavaFlow.players.remove(key: currentPlayerID)! 
+                // mint the equipement
+                
+                LavaFlow.players[currentPlayerID] <-! self.rewardPlayer(player: <-player)
+            }
+            // player.equipments.append(<- equipment)
+            // is there a way to do it non-forced? It's safe because we know that that spot is nil
+            
+            // LavaFlow.players[playerID] <- player
+            // 1. evaluate winning chance
+            // 2. if win, reward player, else {}
+        }
+
+        pub fun rewardPlayer(player: @Player): @Player {
+            // 1. MINT THE ITEM
+            // player.equipments.append(<- equipment)
+            // 2. MOVE ITEM TO PLAYER'S EQUIPMENT
+
+            return <- player
+        }
+    }
+
     // ItemSystem handles all work around item interactions
-    pub struct ItemSystem {}
+    pub struct ItemSystem {
+        pub let maxNumEquipment: Int
+        
+        init() {
+            self.maxNumEquipment = 5
+        }
+
+        // pub fun addItem(to player: Player) {
+        //     // check maxNumEquipment
+        // }
+
+        // pub fun removeItem(from player: Player) {}
+    }
 
     // initialize the entities, components, and systems for Lava Flow
     init() {
-        self.playerEntities = []
-        self.itemEntities = []
-        self.tileEntities = []
+        self.rng = RNG()
+        // self.playerEntities = []
+        // self.itemEntities = []
+        // self.tileEntities = []
 
-        self.players = {}
-        self.items = {}
-        self.tiles = {}
-        self.quests = {}
+        self.players <- {}
+        self.items <- {}
+        self.tiles <- {}
+        self.quests <- {}
+
+        self.playerOrder = []
+        self.currentPlayerIndex = 0
+
+        // initialize the game world with a mix of the tile IDs
+        self.gameboard = []
         
         self.turnPhaseSystem = TurnPhaseSystem()
         self.playerSystem = PlayerSystem()
         self.questSystem = QuestSystem()
         self.itemSystem = ItemSystem()
+    }
+
+    // Declare a structure that holds the RNG logic
+    access(all) struct RNG {
+    
+        // The initial seed
+        access(contract) var seed: UInt64
+
+        // Initialize the seed and call random function to generate a first seed
+        init() {
+            self.seed = UInt64(0)
+            self.random(seed: UInt64(12345))
+        }
+        
+        // Random function that takes a seed and update it with a random number
+        access(all) fun random(seed: UInt64) {
+            let tmpSeed = seed % UInt64(2147483647)
+            if (tmpSeed <= UInt64(0)) {
+                self.seed = tmpSeed + UInt64(2147483646)
+            } else {
+                self.seed = tmpSeed
+            }
+        }
+        
+        // Get the next generated number
+        access(all) fun next(): UInt64 {
+            self.seed = self.seed * UInt64(16807) % UInt64(2147483647)
+            return self.seed
+        }
+
+        // Get the next integer number
+        access(all) fun nextInt(): UInt64 {
+            var tmpSeed = self.next()
+            while(tmpSeed > UInt64(10)) {
+                tmpSeed = tmpSeed % UInt64(10)
+            }
+            if (tmpSeed == UInt64(0)) {
+                return UInt64(1)
+            } else {
+                return tmpSeed
+            }
+        }
+
+        // Get the next integer number
+        access(all) fun runRNG(_ n: UInt64): UInt64 {
+            var tmpSeed = self.next()
+            while(tmpSeed > n) {
+                tmpSeed = tmpSeed % UInt64(10)
+            }
+            if (tmpSeed == UInt64(0)) {
+                return UInt64(1)
+            } else {
+                return tmpSeed
+            }
+        }
     }
 
 }
