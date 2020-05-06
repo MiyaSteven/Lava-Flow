@@ -57,7 +57,7 @@ pub contract LavaFlow {
             self.cunning = cunning
         }
     }
-    
+
     // Item is an individual item that exists in the game world 
     pub resource Item {
         pub let id: UInt64
@@ -74,6 +74,48 @@ pub contract LavaFlow {
             self.type = type
             self.effect = effect
             self.use = use
+        }
+    }
+
+    // Quest is an individual Quest that exists in the game world
+    pub resource Quest {
+        pub let id: UInt64
+        pub let name: String
+        // pub let requirements: {strength: UInt64, intelligence: UInt64, cunning: UInt64}
+        pub let description: String
+        pub let onFail: Bool
+        pub let onComplete: Bool
+
+        init(id: UInt64, name: String, description: String, onFail: Bool, onComplete: Bool) {
+            self.id = id
+            self.name = name
+            //self.requirements = requirements
+            self.description = description
+            self.onFail = false
+            self.onComplete = false
+        }
+    }
+
+    // Units are an internal data structure for entities that reside within the Tile
+    pub struct Unit {
+        pub let entityType: String
+        pub let entityID: UInt64
+
+        init(id: UInt64, type: String) {
+            self.entityType = type
+            self.entityID = id
+        }
+    }
+    
+    // TileComponent represents spaces in the game world
+    // It references entities that are within a certain space
+    pub resource Tile {
+        pub let id: UInt64
+        pub let contains: [Unit]
+
+        init(id: UInt64) {
+            self.id = id
+            self.contains = []
         }
     }
 
@@ -128,34 +170,7 @@ pub contract LavaFlow {
             destroy self.quests
         }
     }
-    // Units are an internal data structure for entities that reside within the Tile
-    pub struct Unit {
-        pub let entityType: String
-        pub let entityID: UInt64
-
-        init(id: UInt64, type: String) {
-            self.entityType = type
-            self.entityID = id
-        }
-    }
     
-    // TileComponent represents spaces in the game world
-    // It references entities that are within a certain space
-    pub resource Tile {
-        pub let id: UInt64
-        pub let contains: [Unit]
-
-        init(id: UInt64) {
-            self.id = id
-            self.contains = []
-        }
-    }
-
-    // QuestComponent is an individual Quest that exists in the game world
-    pub resource Quest {
-        
-    }
-
     /************************************************************************
     * SYSTEMS
     *
@@ -163,7 +178,9 @@ pub contract LavaFlow {
     *************************************************************************/
 
     // TurnPhaseSystem handles all work around player movement and player turn rotation
-    pub struct TurnPhaseSystem {}
+    pub struct TurnPhaseSystem {
+        pub fun nextTurn(): @[playerEntities]
+    }
     
     // PlayerSystem manages character state, namely attributes and effects
     pub struct PlayerSystem {
