@@ -34,6 +34,49 @@ pub contract LavaFlow {
     pub let quests: @{UInt64: Quest}
     
     pub let rng: RNG
+
+    // Declare a structure that holds the RNG logic
+    access(all) struct RNG {
+
+        // The initial seed
+        access(contract) var seed: UInt64
+
+        // Initialize the seed and call random function to generate a first seed
+        init() {
+        self.seed = UInt64(0)
+        self.random(seed: UInt64(12345))
+        }
+        
+        // Random function that takes a seed and update it with a random number
+        access(all) fun random(seed: UInt64) {
+            let tmpSeed = seed % UInt64(2147483647)
+            if (tmpSeed <= UInt64(0)) {
+                self.seed = tmpSeed + UInt64(2147483646)
+        } else {
+            self.seed = tmpSeed
+        }
+    }
+        
+        // Get the next generated number
+        access(all) fun next(): UInt64 {
+            self.seed = self.seed * UInt64(16807) % UInt64(2147483647)
+            return self.seed
+        }
+
+        // Get the next integer number
+        access(all) fun nextInt(): UInt64 {
+            var tmpSeed = self.next()
+            while(tmpSeed > UInt64(10)) {
+                tmpSeed = tmpSeed % UInt64(10)
+            }
+            if (tmpSeed == UInt64(0)) {
+                return UInt64(1)
+            } else {
+                return tmpSeed
+            }
+        }
+    }
+
     /************************************************************************
     * COMPONENTS === GAME STATE
     *
@@ -59,7 +102,6 @@ pub contract LavaFlow {
         pub let strength: UInt64
         pub let cunning: UInt64
         pub let equipments: @[AnyResource] // items of type and attributes, max 5 resources
-
 
         init(id: UInt64, name: String, class: String, intelligence: UInt64, strength: UInt64, cunning: UInt64) {
             self.id = id
@@ -100,9 +142,15 @@ pub contract LavaFlow {
     pub resource Quest {
         pub let id: UInt64
         pub let name: String
+        // Max 3 requirements without double req on attribute
         // pub let requirements: {strength: UInt64, intelligence: UInt64, cunning: UInt64}
+        // ex requirements1: { strenght < 10 }
+        // ex requirements2: { strenght >= 5, intelligence < 8 }
+        // ex requirements3: { strenght <= 5, intelligence > 8, cunning = 6 }
+        // pub let requirements: [QuestRequirement]
+        //
         pub let description: String
-        pub let onFail: Bool
+        pub let onFail: Bool // REMOVE THIS BECAUSE IT'S TIED TO THE PLAYER
         pub let onComplete: Bool
 
         init(id: UInt64, name: String, description: String, onFail: Bool, onComplete: Bool) {
@@ -115,6 +163,52 @@ pub contract LavaFlow {
         }
     }
 
+    pub struct QuestRequirement{
+        /*
+         * 'strenght'
+         * 'intelligence'
+         * 'cunning'
+         */
+        pub let attribute: String
+
+        /*
+         * '<' => UInt(0)
+         * '<=' => UInt(1)
+         * '==' => UInt(2)
+         * '>' => UInt(3)
+         * '>=' => UInt(4)
+         */
+        pub let operation: UInt
+
+        /*
+         * [2..10]
+         */
+        pub let value: UInt
+        init(attribute: String, operation: UInt, value: UInt){
+            self.attribute = attribute
+            self.operation = operation
+            self.value = value
+        }
+    }
+
+    pub resource QuestMinter {
+        pub var idCount: UInt64
+        pub let rng: RNG
+
+        init() {
+            self.idCount = 1
+            self.rng = RNG()
+        }
+
+        pub fun mintQuest(recipient: &AnyResource{TileReceiver}) {
+            let id = self.idCount + UInt64(1)
+            let name = 
+            let newTile <- create Quest(id: UInt64, name: String, description: String, onFail: Bool, onComplete: Bool)
+
+            self.idCount = self.idCount + UInt64(1)
+        }
+    }
+    
     // Units are an internal data structure for entities that reside within the Tile
     pub struct Unit {
         pub let entityType: String
@@ -132,8 +226,8 @@ pub contract LavaFlow {
         pub let id: UInt64
         pub let contains: [Unit]
 
-        init(id: UInt64) {
-            self.id = id
+        init(initID: UInt64) {
+            self.id = initID
             self.contains = []
         }
 
@@ -230,7 +324,9 @@ pub contract LavaFlow {
 
     pub resource interface TileReceiver {
 
-      pub fun deposit(token: @Tile)
+      pub fun depositQuest(quest: @Quest)
+      pub fun depositItem(item: @Item)
+      pub fun deposit(token: @LavaToken.Receiver)
 
       pub fun getIDs(): [UInt64]
 
@@ -238,33 +334,68 @@ pub contract LavaFlow {
     }
 
 
-    pub resource TileMinter {
+    pub resource TileMinter: MaxTileSupply {
+        pub let maxTileCount: UInt64
+        pub var idCount: UInt64
 
         // the ID that is used to mint NFTs
         // it is onlt incremented so that NFT ids remain
         // unique. It also keeps track of the total number of NFTs
         // in existence
-        pub var idCount: UInt64
 
         init() {
+            self.maxTileCount = 100
             self.idCount = 1
         }
 
-        // mintNFT 
+        // mintTile 
         //
-        // Function that mints a new NFT with a new ID
-        // and deposits it in the recipients collection 
+        // Function that mints a new Tile with a new ID
+        // and deposits it in the Gameboard collection 
         // using their collection reference
         pub fun mintTile(recipient: &AnyResource{TileReceiver}) {
 
-            // create a new NFT
-            // var newTile <- create Tile(initID: self.idCount)
+            // create a new Tile
+            var newTile <- create Tile(initID: self.idCount)
+            // Run rng to see if we have something on the tile (50% chance)
+                // run rng to determine if the tile contains a quest (40% chance) | FT (40% chance)| items (20% items)
+            pub fun depositQuest(quest: @Quest) {
+                let oldQuest <- self.ownedQuests[quest.id] <- quest
+                destroy oldQuest
+            }
+
+            pub fun depositItem(item: Item) {
+                let oldItem <- self.ownedItems[item.id] <- item
+                destroy oldItem
+            }
+
+            pub fun depositLavaToken(token: @LavaFlowToken.Receiver) {
+                let oldTokens <- self.ownedTokens[token.count] <- token
+                destroy oldTokens
+            }
+                // 1- Quest:
+                    // create the quest using QuestMinter
+                    // let quest <- LavaFlow.questMinter.mintQuest() // add the quest to the quests component
+                    // add the quest to the tile contents
+                // 2- FT
+                    // run some rng to determine the amount of FT to mint
+                    // create the FlowToken using FlowTokenMinter
+                    // add the FT to the tile
+                // 3- Item
+                    // create the item using itemMinter
+                    // add the item to the tile
+                
 
             // deposit it in the recipient's account using their reference
-            // recipient.deposit(token: <-newTile)
+            recipient.deposit(tile: <-newTile)
 
             // change the id so that each ID is unique
             self.idCount = self.idCount + UInt64(1)
+        }
+
+        pub fun deposit(tile: @Tile){
+            LavaFlow.gameboard.append(tile.id)
+            LavaFlow.tiles[tile.id] <-! tile
         }
     }
 
