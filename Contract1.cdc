@@ -29,6 +29,7 @@ pub contract LavaFlow {
     access(contract) let itemMinter: @ItemMinter
     access(contract) let questMinter: @QuestMinter
     access(contract) let tilePointMinter: @TilePointMinter
+    access(contract) let gameboardMinter: @GameboardMinter
     /************************************************************************
     * COMPONENTS === GAME STATE
     *
@@ -42,9 +43,29 @@ pub contract LavaFlow {
     // playerOrder is a queue of players that have joined the game
     pub let playerOrder: [UInt64]
 
-    // gameboard is the order of tiles laid out for movement
-    pub let gameboard: [UInt64]
+    // // gameboard is the order of tiles laid out for movement
+    // pub let gameboard: [UInt64]
 
+    pub resource GameboardMinter {
+        pub var idCount: UInt64
+
+        init() {
+            self.idCount = 0
+        }
+
+        pub fun mintGameboard(): @Gameboard {
+            self.idCount = self.idCount + UInt64(1)
+            return <- create Gameboard(id: self.idCount)
+        }
+    }
+
+    pub resource Gameboard {
+        pub let id: UInt64
+
+        init(id: UInt64) {
+            self.id = id
+        }
+    }
         
     // Units are an internal data structure for entities that reside within the Tile
     pub resource interface Unit {
@@ -214,19 +235,6 @@ pub contract LavaFlow {
 
         destroy() {
             destroy self.items
-        }
-    }
-
-    // Gameboard owns all the individual Tile data
-    pub resource Gameboard {
-        pub let tiles: @{UInt64: Tile}
-
-        init() {
-            self.tiles <- {}
-        }
-
-        destroy() {
-            destroy self.tiles
         }
     }
     
@@ -442,11 +450,12 @@ pub contract LavaFlow {
         self.currentPlayerIndex = 0
 
         // initialize the game world with a mix of the tile IDs
-        self.gameboard = []
+        // self.gameboard = []
         
         self.itemMinter <- create ItemMinter()
         self.questMinter <- create QuestMinter()
         self.tilePointMinter <- create TilePointMinter()
+        self.gameboardMinter <- create GameboardMinter()
 
         self.turnPhaseSystem = TurnPhaseSystem()
         self.playerSystem = PlayerSystem()
