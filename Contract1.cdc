@@ -150,7 +150,6 @@ pub contract LavaFlow {
         // pub let requirements: [QuestRequirement]
         //
         pub let description: String
-        pub let onFail: Bool // REMOVE THIS BECAUSE IT'S TIED TO THE PLAYER
         pub let onComplete: Bool
 
         init(id: UInt64, name: String, description: String, onFail: Bool, onComplete: Bool) {
@@ -158,7 +157,6 @@ pub contract LavaFlow {
             self.name = name
             //self.requirements = requirements
             self.description = description
-            self.onFail = false
             self.onComplete = false
         }
     }
@@ -202,7 +200,7 @@ pub contract LavaFlow {
 
         pub fun mintQuest(recipient: &AnyResource{TileReceiver}) {
             let id = self.idCount + UInt64(1)
-            let name = 
+            // let name = 
             let newTile <- create Quest(id: UInt64, name: String, description: String, onFail: Bool, onComplete: Bool)
 
             self.idCount = self.idCount + UInt64(1)
