@@ -20,6 +20,7 @@ pub contract LavaFlow {
     pub let items: @{UInt64: Item}
     pub let tiles: @{UInt64: Tile}
     pub let quests: @{UInt64: Quest}
+    pub let games: @{UInt64: Gameboard}
     
     pub let rng: RNG
 
@@ -29,7 +30,7 @@ pub contract LavaFlow {
     access(contract) let itemMinter: @ItemMinter
     access(contract) let questMinter: @QuestMinter
     access(contract) let tilePointMinter: @TilePointMinter
-    access(contract) let gameboardMinter: @GameboardMinter
+    pub let gameboardMinter: @GameboardMinter
     access(contract) let tileMinter: @TileMinter
     /************************************************************************
     * COMPONENTS === GAME STATE
@@ -47,6 +48,38 @@ pub contract LavaFlow {
     // // gameboard is the order of tiles laid out for movement
     // pub let gameboard: [UInt64]
 
+    // viewGames logs a game's tiles and its contents
+    pub fun viewGames(id: UInt64) {
+        let game <- self.games.remove(key: id)!
+        log("gameID")
+        log(game.id)
+
+        // access nested tiles
+        var i = 0
+        while i < game.tiles.length {
+            let tile <- game.tiles.remove(at: i)
+            log("tileID")
+            log(tile.id)
+
+            // access nested tile content
+            var j = 0
+            while j < tile.container.length {
+                let unit <- tile.container.remove(at: UInt64(j))
+                log("unitID")
+                log(unit.id)
+                log(unit.entityType)
+                tile.container.insert(at: j, <-unit)
+                j = j + 1
+            }
+
+            game.tiles.insert(at: i, <-tile)
+
+            i = i + 1
+        }
+
+        self.games[id] <-! game
+    }
+
     pub resource GameboardMinter {
         pub var idCount: UInt64
 
@@ -54,9 +87,10 @@ pub contract LavaFlow {
             self.idCount = 0
         }
 
-        pub fun mintGameboard(): @Gameboard {
+        pub fun mintGameboard() {
             self.idCount = self.idCount + UInt64(1)
-            return <- create Gameboard(id: self.idCount)
+            let game <- create Gameboard(id: self.idCount)
+            LavaFlow.games[game.id] <-! game
         }
     }
 
@@ -69,8 +103,10 @@ pub contract LavaFlow {
 
             self.tiles <- []
 
+            self.tiles.append(<-LavaFlow.tileMinter.mintEmptyTile())
+
             // initialize the game board with tiles and items
-            while(self.tiles.length < 100) {
+            while(self.tiles.length < 5) {
                 let newTile <- LavaFlow.tileMinter.mintTile()
                 self.tiles.append(<-newTile) 
             }
@@ -208,21 +244,23 @@ pub contract LavaFlow {
     // It references entities that are within a certain space
     pub resource Tile {
         pub let id: UInt64
-        pub let contains: @[AnyResource{Unit}]
+        pub let container: @[AnyResource{Unit}]
 
         init(initID: UInt64) {
             self.id = initID
-            self.contains <- []
+            self.container <- []
         }
 
         pub fun addUnit(unit: @AnyResource{LavaFlow.Unit}) {
-            self.contains.append(<-unit)
+            self.container.append(<-unit)
         }
 
-        pub fun removeUnit() {}
+        pub fun removeUnit(id: UInt64): @AnyResource{LavaFlow.Unit} {
+            return <-self.container.remove(at: id)
+        }
 
         destroy(){
-            destroy self.contains
+            destroy self.container
         }
     }
 
@@ -291,7 +329,7 @@ pub contract LavaFlow {
         pub fun movePlayer(id: UInt64) {
             // 1. get the player id
             // 2. check if id exists in the game world
-            // 3. update the tile that contains the player
+            // 3. update the tile that container the player
         }
 
         pub fun readAttributes() {
@@ -360,7 +398,7 @@ pub contract LavaFlow {
 
         init() {
             self.maxTileCount = 100
-            self.idCount = 1
+            self.idCount = 0
         }
 
         // mintTile 
@@ -369,19 +407,20 @@ pub contract LavaFlow {
         // and deposits it in the Gameboard collection 
         // using their collection reference
         pub fun mintTile(): @Tile {
-
+            self.idCount = self.idCount + UInt64(1)
             // create a new Tile
             var newTile <- create Tile(initID: self.idCount)
 
             // determine whether an event trigger occurs (items, quest, ft)
             // Run rng to see if we have something on the tile (50% chance)
-            // run rng to determine if the tile contains a quest (40% chance) | FT (40% chance)| items (20% items)
+            // run rng to determine if the tile container a quest (40% chance) | FT (40% chance)| items (20% items)
             let shouldTileHaveEvent = LavaFlow.rng.runRNG(100)
-            if shouldTileHaveEvent > UInt64(50) {
-
+            // if shouldTileHaveEvent > UInt64(50) {
+            if true {
                 // if a tile is allowed to have an event, create an entity for the tile
                 let eventChance = LavaFlow.rng.runRNG(100)
-                if (eventChance > UInt64(60)) {
+                // if (eventChance > UInt64(60)) {
+                if true {
                     newTile.addUnit(unit: <-LavaFlow.questMinter.mintQuest())
                 } else if (eventChance > UInt64(20)) {
                     newTile.addUnit(unit: <-LavaFlow.tilePointMinter.mintPoints(amount: LavaFlow.rng.runRNG(100)))
@@ -391,6 +430,11 @@ pub contract LavaFlow {
             }
             
             return <- newTile
+        }
+
+        pub fun mintEmptyTile(): @Tile {
+            self.idCount = self.idCount + UInt64(1)
+            return <- create Tile(initID: self.idCount)
         }
     }
 
@@ -459,13 +503,11 @@ pub contract LavaFlow {
         self.items <- {}
         self.tiles <- {}
         self.quests <- {}
+        self.games <- {}
 
         self.playerOrder = []
         self.currentPlayerIndex = 0
 
-        // initialize the game world with a mix of the tile IDs
-        // self.gameboard = []
-        
         self.itemMinter <- create ItemMinter()
         self.questMinter <- create QuestMinter()
         self.tilePointMinter <- create TilePointMinter()
@@ -486,8 +528,8 @@ pub contract LavaFlow {
 
         // Initialize the seed and call random function to generate a first seed
         init() {
-        self.seed = UInt64(0)
-        self.random(seed: UInt64(12345))
+            self.seed = UInt64(0)
+            self.random(seed: UInt64(12345))
         }
         
         // Random function that takes a seed and update it with a random number
@@ -523,7 +565,7 @@ pub contract LavaFlow {
         access(all) fun runRNG(_ n: UInt64): UInt64 {
             var tmpSeed = self.next()
             while(tmpSeed > n) {
-                tmpSeed = tmpSeed % UInt64(10)
+                tmpSeed = tmpSeed % UInt64(n)
             }
             if (tmpSeed == UInt64(0)) {
                 return UInt64(1)

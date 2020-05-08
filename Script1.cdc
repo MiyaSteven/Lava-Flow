@@ -1,3 +1,6 @@
+import LavaFlow from 0x01
+
 pub fun main(): Int {
-  return 1
+  LavaFlow.viewGames(id: UInt64(1))
+  return 0
 }
