@@ -127,7 +127,6 @@ pub contract LavaFlow {
         // ex requirements2: { strenght >= 5, intelligence < 8 }
         // ex requirements3: { strenght <= 5, intelligence > 8, cunning = 6 }
         pub let requirements: [QuestRequirement]
-
         // pub let onFail: ((): void)
         // pub let onComplete: ((): void)
 
@@ -137,7 +136,6 @@ pub contract LavaFlow {
             self.description = description
             self.requirements = []
             self.entityType = "EntityQuest"
-            // self.onComplete = false
             // self.onFail = fun(): void
             // self.onComplete = fun(): void
         }
@@ -145,7 +143,7 @@ pub contract LavaFlow {
 
     pub struct QuestRequirement {
         /*
-         * 'strenght'
+         * 'strength'
          * 'intelligence'
          * 'cunning'
          */
@@ -182,8 +180,8 @@ pub contract LavaFlow {
             self.contains <- []
         }
 
-        pub fun addUnit() {
-            // self.contains.push(Unit(entityType: "Player", entityID: UInt64(1)))
+        pub fun addUnit(unit: @AnyResource{LavaFlow.Unit}) {
+            self.contains.append(<-unit)
         }
 
         pub fun removeUnit() {}
@@ -348,32 +346,33 @@ pub contract LavaFlow {
         // Function that mints a new Tile with a new ID
         // and deposits it in the Gameboard collection 
         // using their collection reference
-        pub fun mintTile(recipient: &AnyResource{TileReceiver}) {
+        pub fun mintTile(): @Tile {
 
             // create a new Tile
             var newTile <- create Tile(initID: self.idCount)
 
+            // determine whether an event trigger occurs (items, quest, ft)
             // Run rng to see if we have something on the tile (50% chance)
             // run rng to determine if the tile contains a quest (40% chance) | FT (40% chance)| items (20% items)
             let shouldTileHaveEvent = LavaFlow.rng.runRNG(100)
             if shouldTileHaveEvent > UInt64(50) {
+
+                // if a tile is allowed to have an event, create an entity for the tile
                 let eventChance = LavaFlow.rng.runRNG(100)
                 if (eventChance > UInt64(60)) {
-                    let quest <- LavaFlow.questMinter.mintQuest()
-                    newTile.contains.append(<-quest)
+                    newTile.addUnit(unit: <-LavaFlow.questMinter.mintQuest())
                 } else if (eventChance > UInt64(20)) {
-                    let randomAmount = LavaFlow.rng.runRNG(100)
-                    let points <- LavaFlow.tilePointMinter.mintPoints(amount: randomAmount)
-                    newTile.contains.append(<-points)
+                    newTile.addUnit(unit: <-LavaFlow.tilePointMinter.mintPoints(amount: LavaFlow.rng.runRNG(100)))
                 } else {
-                    let item <- LavaFlow.itemMinter.mintItem()
-                    newTile.contains.append(<-item)
+                    newTile.addUnit(unit: <-LavaFlow.itemMinter.mintItem())
                 }
             }
+            
+            return <- newTile
         }
     }
 
-        // QuestSystem handles all work around quest interactions
+    // QuestSystem handles all work around quest interactions
     pub struct QuestSystem {
         pub fun completeQuest() {
             // 1. get the quest
