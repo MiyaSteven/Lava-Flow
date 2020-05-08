@@ -30,6 +30,7 @@ pub contract LavaFlow {
     access(contract) let questMinter: @QuestMinter
     access(contract) let tilePointMinter: @TilePointMinter
     access(contract) let gameboardMinter: @GameboardMinter
+    access(contract) let tileMinter: @TileMinter
     /************************************************************************
     * COMPONENTS === GAME STATE
     *
@@ -61,9 +62,22 @@ pub contract LavaFlow {
 
     pub resource Gameboard {
         pub let id: UInt64
+        pub let tiles: @[Tile]
 
         init(id: UInt64) {
             self.id = id
+
+            self.tiles <- []
+
+            // initialize the game board with tiles and items
+            while(self.tiles.length < 100) {
+                let newTile <- LavaFlow.tileMinter.mintTile()
+                self.tiles.append(<-newTile) 
+            }
+        }
+
+        destroy() {
+            destroy self.tiles
         }
     }
         
@@ -456,6 +470,7 @@ pub contract LavaFlow {
         self.questMinter <- create QuestMinter()
         self.tilePointMinter <- create TilePointMinter()
         self.gameboardMinter <- create GameboardMinter()
+        self.tileMinter <- create TileMinter()
 
         self.turnPhaseSystem = TurnPhaseSystem()
         self.playerSystem = PlayerSystem()
