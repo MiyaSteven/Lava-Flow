@@ -1,10 +1,6 @@
 // LavaFlow Contract
 // The adventurers seeking riches are caught in a lava-filled treasure cave, Mordor. 
 // Their entrance have been destroyed. They must find a way out while finding as many treasures as possible.
-//
-// Architecture: loosely architected based on the Entity-Components-System pattern
-// https://aframe.io/docs/1.0.0/introduction/entity-component-system.html
-// https://en.wikipedia.org/wiki/Entity_component_system
 pub contract LavaFlow {
 
     /**************************************************************
@@ -12,13 +8,6 @@ pub contract LavaFlow {
     * 
     * Here are all the declared entities, components, and systems
     ***************************************************************/
-
-    // // ENTITIES = THINGS IN THE GAME
-    // // Entities references all existing interactive models in the Lava Flow universe
-    // // Systems will reference Entities here to access Components
-    // pub let playerEntities: {} // 2, 0, 1
-    // pub let itemEntities: [UInt64]
-    // pub let tileEntities: [UInt64]
 
     // Systems act upon the game world state (Components), reading and updating as necessary
     pub let turnPhaseSystem: TurnPhaseSystem
@@ -34,9 +23,12 @@ pub contract LavaFlow {
     
     pub let rng: RNG
 
-    // tilePointerTracker tracks the number of points a tile has
-    pub let tilePointerTracker: {UInt64: UInt64}
-
+    /*
+    * MINTERS
+    */
+    access(contract) let itemMinter: @ItemMinter
+    access(contract) let questMinter: @QuestMinter
+    access(contract) let tilePointMinter: @TilePointMinter
     /************************************************************************
     * COMPONENTS === GAME STATE
     *
@@ -58,11 +50,6 @@ pub contract LavaFlow {
     pub resource interface Unit {
         pub let id: UInt64
         pub let entityType: String
-
-        init(id: UInt64, type: String) {
-            self.id = id
-            self.entityType = type
-        }
     }
 
     // TilePoint represents the tokens to be rewarded to a player
@@ -183,32 +170,16 @@ pub contract LavaFlow {
             self.value = value
         }
     }
-
-    pub resource QuestMinter {
-        pub var idCount: UInt64
-        pub let rng: RNG
-
-        init() {
-            self.idCount = 1
-            self.rng = RNG()
-        }
-
-        pub fun mintQuest(): @Quest {
-            let id = self.idCount + UInt64(1)
-            self.idCount = self.idCount + UInt64(1)
-            return <- create Quest(id: id, name: "PlaceholderName", description: "PlaceholderDesc")
-        }
-    }
     
     // TileComponent represents spaces in the game world
     // It references entities that are within a certain space
     pub resource Tile {
         pub let id: UInt64
-        pub let contains: @[Unit]
+        pub let contains: @[AnyResource{Unit}]
 
         init(initID: UInt64) {
             self.id = initID
-            self.contains = []
+            self.contains <- []
         }
 
         pub fun addUnit() {
@@ -216,6 +187,10 @@ pub contract LavaFlow {
         }
 
         pub fun removeUnit() {}
+
+        destroy(){
+            destroy self.contains
+        }
     }
 
     // Players owns all the individual Player data
@@ -269,6 +244,8 @@ pub contract LavaFlow {
             destroy self.quests
         }
     }
+
+    
     
     /************************************************************************
     * SYSTEMS
@@ -307,10 +284,50 @@ pub contract LavaFlow {
       pub fun idExists(id: UInt64): Bool
     }
 
-    pub resource itemMinter {
-        pub let id: UInt64
+    // Minters
+    
+    pub resource QuestMinter {
+        pub var idCount: UInt64
+        pub let rng: RNG
+
+        init() {
+            self.idCount = 1
+            self.rng = RNG()
+        }
+
+        pub fun mintQuest(): @Quest {
+            let id = self.idCount + UInt64(1)
+            self.idCount = self.idCount + UInt64(1)
+            return <- create Quest(id: id, name: "PlaceholderName", description: "PlaceholderDesc")
+        }
     }
 
+    pub resource ItemMinter {
+        pub var idCount: UInt64
+
+        init() {
+            self.idCount = UInt64(0)
+        }
+
+        pub fun mintItem(): @Item {
+            self.idCount = self.idCount + UInt64(1)
+            let points = LavaFlow.rng.runRNG(100)
+            return <- create Item(id: self.idCount, name: "placement name", points: points, type: "placement item type", effect: "diarrhea", use: "plunger")
+        }
+    }
+    
+    pub resource TilePointMinter{
+        pub var idCount: UInt64
+
+        init() {
+            self.idCount = UInt64(0)
+        }
+
+        pub fun mintPoints(amount: UInt64): @TilePoint {
+            self.idCount = self.idCount + UInt64(1)
+            return <- create TilePoint(id: self.idCount, amount: amount)
+        }
+    }
 
     pub resource TileMinter {
         pub let maxTileCount: UInt64
@@ -349,7 +366,7 @@ pub contract LavaFlow {
                     let points <- LavaFlow.tilePointMinter.mintPoints(amount: randomAmount)
                     newTile.contains.append(<-points)
                 } else {
-                    let item = LavaFlow.itemMinter.mintItem()
+                    let item <- LavaFlow.itemMinter.mintItem()
                     newTile.contains.append(<-item)
                 }
             }
@@ -428,6 +445,10 @@ pub contract LavaFlow {
         // initialize the game world with a mix of the tile IDs
         self.gameboard = []
         
+        self.itemMinter <- create ItemMinter()
+        self.questMinter <- create QuestMinter()
+        self.tilePointMinter <- create TilePointMinter()
+
         self.turnPhaseSystem = TurnPhaseSystem()
         self.playerSystem = PlayerSystem()
         self.questSystem = QuestSystem()
