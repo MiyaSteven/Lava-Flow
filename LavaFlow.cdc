@@ -36,6 +36,7 @@ pub contract LavaFlow {
     access(contract) let tilePointMinter: @TilePointMinter
     access(contract) let tileMinter: @TileMinter
     pub let gameboardMinter: @GameboardMinter
+    access(contract) let playerMinter: @PlayerMinter
 
     // Collections hold all the entities that exist in the game world
     pub let players: @{UInt64: Player}
@@ -195,6 +196,23 @@ pub contract LavaFlow {
             self.id = id        
             self.amount = amount
             self.entityType = "EntityTilePoint"
+        }
+    }
+
+    pub resource PlayerMinter {
+        pub var idCount: UInt64
+
+        init() {
+            self.idCount = UInt64(1)
+        }
+
+        pub fun mintPlayers(): @Player {
+            self.idCount = self.idCount + UInt64(1)
+            /* Should we make a global variable for rng variables? */
+            let randomStat1 = LavaFlow.rng.runRNG(10)
+            let randomStat2 = LavaFlow.rng.runRNG(10)
+            let randomStat3 = LavaFlow.rng.runRNG(10)
+            return <- create Player(id: UInt64(1), name: "placement name", class: "placement class", intelligence: randomStat1, strength: randomStat2, cunning: randomStat3)
         }
     }
 
@@ -462,6 +480,7 @@ pub contract LavaFlow {
         self.tilePointMinter <- create TilePointMinter()
         self.gameboardMinter <- create GameboardMinter()
         self.tileMinter <- create TileMinter()
+        self.playerMinter <- create PlayerMinter()
 
         self.turnPhaseSystem = TurnPhaseSystem()
         self.playerSystem = PlayerSystem()
