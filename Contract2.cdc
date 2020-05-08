@@ -43,9 +43,9 @@ access(all) contract LavaToken {
   }
 
   pub resource LavaTokenMinter {
-    pub fun mintTokens(amount: UInt64, recipient: &AnyResource{Receiver}) {
+    pub fun mintTokens(amount: UInt64): @Vault {
       LavaToken.totalSupply = LavaToken.totalSupply + amount
-      recipient.deposit(from: <-create Vault(balance: amount))
+      return <- create Vault(balance: amount)
     }
   }
 
