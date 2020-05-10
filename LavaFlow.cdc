@@ -390,6 +390,7 @@ pub contract LavaFlow {
 
     // TurnPhaseSystem handles all work around player movement and player turn rotation
     pub struct TurnPhaseSystem {
+
         // pub fun nextTurn(): @[playerEntities]
     }
     
@@ -404,6 +405,7 @@ pub contract LavaFlow {
         }
 
         pub fun movePlayer(id: UInt64) {
+            
             // 1. get the player id
             // 2. check if id exists in the game world
             // 3. update the tile that container the player
