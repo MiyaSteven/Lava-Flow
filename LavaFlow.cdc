@@ -431,13 +431,15 @@ pub contract LavaFlow {
 
         // addPlayerToGame moves a Player into the game world
         pub fun addPlayerToGame(player: @Player) {
-            LavaFlow.players[player.id] <-! player 
+            LavaFlow.playerEntities[player.id] = &player as &Player // store entity reference
+            LavaFlow.players[player.id] <-! player // move player into game world
         }
 
         // removePlayerFromGame removes a Player from the game world.
         // Example: When an owner's account wants to retrieve their Player after a game ends
         pub fun removePlayerFromGame(id: UInt64): @Player {
-            return <- LavaFlow.players.remove(key: id)!
+            LavaFlow.playerEntities.remove(key: id) // clean up reference
+            return <- LavaFlow.players.remove(key: id)! // remove player from game world
         }
     }
     
