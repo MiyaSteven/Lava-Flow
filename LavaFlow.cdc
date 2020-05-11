@@ -16,8 +16,14 @@ pub contract LavaFlow {
     pub let itemSystem: ItemSystem
     pub let movementSystem: MovementSystem
 
+    // Entities hold references to all the resources in the game world
+    // This enables easy access to resources
+    pub let playerEntities: {UInt64: &Player}
+    pub let itemEntities: {UInt64: &Item}
+    pub let questEntities: {UInt64: &Quest}
+
     // currentPlayerIndex points to the turn's current player
-    pub let currentPlayerIndex: Int // 0...4
+    pub var currentPlayerIndex: Int // i.e. 0...4
     
     // playerOrder is a queue of players that have joined the game
     pub let playerOrder: [UInt64]
@@ -36,8 +42,8 @@ pub contract LavaFlow {
     access(contract) let questMinter: @QuestMinter
     access(contract) let tilePointMinter: @TilePointMinter
     access(contract) let tileMinter: @TileMinter
-    pub let gameboardMinter: @GameboardMinter
     access(contract) let playerMinter: @PlayerMinter
+    pub let gameboardMinter: @GameboardMinter
 
     // Collections hold all the entities that exist in the game world
     pub let players: @{UInt64: Player}
@@ -389,9 +395,53 @@ pub contract LavaFlow {
     * Handles state changes in the game world
     *************************************************************************/
 
-    // TurnPhaseSystem handles all work around player movement and player turn rotation
+    // TurnPhaseSystem handles all work around player movement and player turn rotation.
     pub struct TurnPhaseSystem {
-        // pub fun nextTurn(): @[playerEntities]
+        pub fun pickFirstPlayer(): UInt64 {
+            let len = LavaFlow.playerOrder.length
+            let rng = LavaFlow.rng.runRNG(UInt64(len))
+            LavaFlow.currentPlayerIndex = Int(rng)
+            return rng
+        }
+
+        // getCurrentTurnPlayer returns the current turn's player ID.
+        pub fun getCurrentTurnPlayer(): UInt64 {
+            return LavaFlow.playerOrder[LavaFlow.currentPlayerIndex]
+        }
+
+        // nextTurn forwards the turn by 1 and returns the new current player's ID
+        pub fun nextTurn(): UInt64 {
+            var nextTurn = LavaFlow.currentPlayerIndex + 1
+            if nextTurn == LavaFlow.playerOrder.length {
+                nextTurn = 0
+            }
+            LavaFlow.currentPlayerIndex = nextTurn
+            return self.getCurrentTurnPlayer()
+        }
+
+        // prevTurn only sets the player order back by 1 turn and returns the new current player's ID
+        // It does not support reversing a turn skip.
+        pub fun prevTurn(): UInt64 {
+            var prevTurn = LavaFlow.currentPlayerIndex - 1
+            if prevTurn < 0 {
+                prevTurn = LavaFlow.playerOrder.length - 1
+            }
+            LavaFlow.currentPlayerIndex = prevTurn
+            return self.getCurrentTurnPlayer()
+        }
+
+        // addPlayerToGame moves a Player into the game world
+        pub fun addPlayerToGame(player: @Player) {
+            LavaFlow.playerEntities[player.id] = &player as &Player // store entity reference
+            LavaFlow.players[player.id] <-! player // move player into game world
+        }
+
+        // removePlayerFromGame removes a Player from the game world.
+        // Example: When an owner's account wants to retrieve their Player after a game ends
+        pub fun removePlayerFromGame(id: UInt64): @Player {
+            LavaFlow.playerEntities.remove(key: id) // clean up reference
+            return <- LavaFlow.players.remove(key: id)! // remove player from game world
+        }
     }
     
     // PlayerSystem manages character state, namely attributes and effects
@@ -509,6 +559,10 @@ pub contract LavaFlow {
         self.questSystem = QuestSystem()
         self.itemSystem = ItemSystem()
         self.movementSystem = MovementSystem()
+
+        self.playerEntities = {}
+        self.itemEntities = {}
+        self.questEntities = {}
 
         self.playerOrder = []
         self.currentPlayerIndex = 0
