@@ -14,6 +14,7 @@ pub contract LavaFlow {
     pub let playerSystem: PlayerSystem
     pub let questSystem: QuestSystem
     pub let itemSystem: ItemSystem
+    pub let movementSystem: MovementSystem
 
     // currentPlayerIndex points to the turn's current player
     pub let currentPlayerIndex: Int // 0...4
@@ -414,9 +415,30 @@ pub contract LavaFlow {
         }
     }
 
-    pub resource interface TileReceiver {
-      pub fun getIDs(): [UInt64]
-      pub fun idExists(id: UInt64): Bool
+    pub struct MovementSystem {
+        // moveEntity moves a Unit into a Tile
+        access(self) fun moveUnit(unit: @AnyResource{LavaFlow.Unit}, to tile: &Tile) {
+            tile.container.append(<-unit)
+        }
+
+        // moveUnitForward moves a Unit from a given tile to a tile ahead of itself
+        // pub fun moveUnitForward(from tile: @Tile, entityID: UInt64, entityType: UInt64, spaces: UInt64) {
+            // pull the correct Unit by id and type from the tile
+            // get the tile ahead of the current tile
+            // make sure we check for the last game tile
+            // move that unit into the new tile
+            // self.moveUnit()
+        // }
+
+        // moveUnitBack 
+        // pub fun moveUnitBack(from tile: @Tile, entityID: UInt64, entityType: UInt64, spaces: UInt64) {
+            // pull the correct Unit by id and type from the tile
+            // get the tile behind the current tile
+            // make sure we check that the tile is not destroyed and in lava.
+            // if in lava, trigger player death
+            // move that unit into the new tile
+            // self.moveUnit()
+        // }
     }
 
     // QuestSystem handles all work around quest interactions
@@ -486,6 +508,7 @@ pub contract LavaFlow {
         self.playerSystem = PlayerSystem()
         self.questSystem = QuestSystem()
         self.itemSystem = ItemSystem()
+        self.movementSystem = MovementSystem()
 
         self.playerOrder = []
         self.currentPlayerIndex = 0
