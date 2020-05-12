@@ -558,6 +558,7 @@ pub contract LavaFlow {
             }
             
             // 4. end game for player in tile with lava
+
             // 5. check game status: number of live players or if all players reached end
             
             game.incrementTurn()
