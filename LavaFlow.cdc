@@ -6,8 +6,38 @@ pub contract LavaFlow {
     /**************************************************************
     * LAVA FLOW LOCAL GAME WORLD STATE 
     * 
-    * Declare all entities, collections, and systems
+    * Declare all events, entities, collections, and systems
     ***************************************************************/
+
+    // Events record the changes made in the game world
+    event MintedPlayer(playerID: UInt64, gameID: UInt64)
+    event MintedTile(initID: UInt64)
+    event MintedItem(itemID: UInt64, tileID: UInt64)
+    event MintedQuest(id: UInt64)
+    event MintedTilePoints(id: UInt64, amount: UInt64)
+    event MintedGameboard(id: UInt64)
+    event BurnedPlayer(id: UInt64)
+    // event BurnedTile()
+    // event BurnedItem()
+    // event BurnedQuest()
+    // event BurnedTilePoints()
+    // event CreatedGame()
+    // event JoinedGame()
+    // event StartedGame()
+    // event EndedGame()
+    // event PlayedUserTurn()
+    // event MovedPlayer()
+    // event MovedLava()
+    event GotUnitInTile(id: UInt64)
+    event RemovedUnit(id: UInt64)
+    event AddUnitToTile(id: UInt64)
+    event CompleteQuest()
+    event AddedQuest(id: UInt64)
+    event DestroyedQuest(id: UInt64)
+    event AddedPlayer(id: UInt64)
+    event DestroyedPlayer(id: UInt64)
+    // event UsedItem()
+    event CoveredTileWithLava(id: UInt64)
 
     // Systems act upon the game world state
     pub let turnPhaseSystem: TurnPhaseSystem
@@ -57,10 +87,12 @@ pub contract LavaFlow {
 
         init() {
             self.players <- {}
+            emit AddedPlayer(id: UInt64(1))
         }
 
         destroy() {
             destroy self.players
+            emit DestroyedPlayer(id: UInt64(1))
         }
     }
 
@@ -83,10 +115,12 @@ pub contract LavaFlow {
 
         init() {
             self.quests <- {}
+            emit AddedQuest(id: UInt64(1))
         }
 
         destroy() {
             destroy self.quests
+            emit DestroyedQuest(id: UInt64(1))
         }
     }
 
@@ -105,6 +139,7 @@ pub contract LavaFlow {
         pub fun mintGameboard() {
             self.idCount = self.idCount + UInt64(1)
             let game <- create Gameboard(id: self.idCount)
+            emit MintedGameboard(id: self.idCount)
             LavaFlow.games[game.id] <-! game
         }
     }
@@ -215,6 +250,8 @@ pub contract LavaFlow {
 
         pub fun mintPoints(amount: UInt64): @TilePoint {
             self.idCount = self.idCount + UInt64(1)
+            
+            emit MintedTilePoints(id: self.idCount, amount: amount)
             return <- create TilePoint(id: self.idCount, amount: amount)
         }
     }
@@ -245,8 +282,11 @@ pub contract LavaFlow {
             let randomStat1 = LavaFlow.rng.runRNG(10)
             let randomStat2 = LavaFlow.rng.runRNG(10)
             let randomStat3 = LavaFlow.rng.runRNG(10)
+            
+            emit MintedPlayer(playerID: UInt64(1))
             return <- create Player(id: UInt64(1), name: "placement name", class: "placement class", intelligence: randomStat1, strength: randomStat2, cunning: randomStat3)
         }
+        
     }
 
     // Player is an individual character that exists in the game world
@@ -271,7 +311,6 @@ pub contract LavaFlow {
             self.entityType = "EntityPlayer"
         }
 
-
         destroy() {
             destroy self.equipments
         }
@@ -289,6 +328,7 @@ pub contract LavaFlow {
         pub fun mintQuest(): @Quest {
             let id = self.idCount + UInt64(1)
             self.idCount = self.idCount + UInt64(1)
+            emit MintedQuest(id: id)
             return <- create Quest(id: id, name: "PlaceholderName", description: "PlaceholderDesc")
         }
     }
@@ -360,6 +400,7 @@ pub contract LavaFlow {
         // and deposits it in the Gameboard collection 
         // using their collection reference
         pub fun mintTile(): @Tile {
+            
             var newTile <- create Tile(initID: self.incrementID())
 
             // determine whether an event trigger occurs (items, quest, ft)
@@ -376,7 +417,7 @@ pub contract LavaFlow {
                     newTile.addUnit(unit: <-LavaFlow.itemMinter.mintItem())
                 }
             }
-
+            emit MintedTile(initID: self.incrementID())
             return <- newTile
         }
 
@@ -406,10 +447,12 @@ pub contract LavaFlow {
         }
 
         pub fun addUnit(unit: @AnyResource{LavaFlow.Unit}) {
+            emit AddUnitToTile(id: UInt64(1))
             self.container.append(<-unit)
         }
 
         pub fun removeUnit(id: UInt64): @AnyResource{LavaFlow.Unit} {
+            emit RemovedUnit(id: UInt64(1))
             return <-self.container.remove(at: id)
         }
 
@@ -424,7 +467,7 @@ pub contract LavaFlow {
                 }
                 self.container.insert(at: i, <- unit)
             }
-
+            emit GotUnitInTile(id: UInt64(1))
             return <- self.container.remove(at: unitPositionInTileContainer)
         }
 
@@ -435,6 +478,7 @@ pub contract LavaFlow {
 
         destroy(){
             destroy self.container
+            emit CoveredTileWithLava(id: UInt64(1))
         }
     }
 
@@ -519,6 +563,7 @@ pub contract LavaFlow {
                 while lastLavaTilePosition < lastLavaTilePosition + UInt(lavaMovement) {
                     let tile <- game.tiles.remove(at: lastLavaTilePosition)
                     tile.coverWithLava()
+                    emit CoveredTileWithLava(at: UInt64(1))
 
                     // check if a player is on a tile covered with lava
                     // destroy the player if lava touches them
@@ -534,6 +579,7 @@ pub contract LavaFlow {
 
                             // You are not worthy of the Lava
                             let player <- tile.getUnit(id: playerID, type: "EntityPlayer")
+                            emit BurnedPlayer(id: playerID)
                             destroy player
 
                             game.playerTilePositions.remove(key: playerID)
