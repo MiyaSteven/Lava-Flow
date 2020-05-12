@@ -3,6 +3,9 @@
 // Their entrance have been destroyed. They must find a way out while finding as many treasures as possible because they're greedy sons of pigs.
 pub contract LavaFlow {
 
+
+    event MintedPlayer()
+
     /**************************************************************
     * LAVA FLOW LOCAL GAME WORLD STATE 
     * 
