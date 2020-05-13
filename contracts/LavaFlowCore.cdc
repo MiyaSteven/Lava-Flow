@@ -2,7 +2,38 @@
 // The adventurers seeking riches are caught in an erupting treasure-filled volcano dungeon, Flodor. 
 // Their entrance have been destroyed. They must find a way out while finding as many treasures as possible because they're greedy sons of pigs.
 pub contract LavaFlow {
-  
+
+  pub event MintedPlayer(id id: UInt,name name: String,class class: String,intelligence intelligence: UInt,strength strength: UInt,cunning cunning: UInt)
+  pub event DestroyedPlayer(id: UInt)
+  pub event MintedItem(id: UInt, name: String, points: UInt, type: String, effect: String, use: String)
+  pub event DestroyedItem(id: UInt)
+  pub event MintedTilePoint(id: UInt, amount: UInt)
+  pub event DestroyedTilePoint(id: UInt)
+  pub event MintedQuest(id: UInt, name: String, description: String)
+  pub event DestroyedQuest(id: UInt)
+  pub event MintedTile(id: UInt)
+  pub event DestroyedTile(id: UInt)
+  pub event AddedItemToTile(tileId: UInt, itemId: UInt)
+  pub event AddedQuestToTile(tileId: UInt, questId: UInt)
+  pub event AddedTilePointToTile(tileId: UInt, tilePointId: UInt)
+  pub event MintedGame(id: UInt, playersCount: UInt)
+  pub event DestroyedGame(id: UInt)
+  pub event AddedTileToGame(gameId: UInt, tileId: UInt, position: UInt)
+  pub event StartedGame(gameId: UInt)
+  pub event AddedPlayerToGame(gameId: UInt, playerId: UInt)
+  pub event NextGameTurn(gameId: UInt)
+  pub event NextPlayerTurn(gameId: UInt, playerId: UInt)
+  pub event MovedPlayerToTile(gameId: UInt, playerId: UInt, tilePosition: UInt)
+  pub event MovedLava(gameId: UInt, lastPosition: UInt)
+
+  pub event PlayerEndedGame(gameId: UInt, playerId: UInt)
+  pub event TransferredPlayer(gameId: UInt, playerId: UInt)
+  pub event TransferredTokens(gameId: UInt, amount: UInt)
+  pub event PlayerPickedItem(gameId: UInt, playerId: UInt, itemId: UInt)
+  pub event PlayerPickedTilePoint(gameId: UInt, playerId: UInt, tilePointId: UInt)
+  pub event PlayerCompletedQuest(gameId: UInt, playerId: UInt, questId: UInt)
+  pub event PlayerRewardedItem(gameId: UInt, playerId: UInt, itemId: UInt)
+  pub event PlayerFailedQuest(gameId: UInt, playerId: UInt, questId: UInt)
   /************************************************************************
   * Global variables
   *
@@ -58,9 +89,9 @@ pub contract LavaFlow {
   }
 
   // start a game
-  // pub fun startGame(gameId: UInt){
-  //   let game <- self.games.remove(key: gameId)
-  // }
+  pub fun startGame(gameId: UInt){
+    self.gameSystem.startGame(gameId: gameId)
+  }
 
   /************************************************************************
   * Entities
@@ -263,16 +294,6 @@ pub contract LavaFlow {
       self.currentPlayerIndex = 0
       self.playerTurnOrder = []
       self.playerReceivers = {}
-
-      let tileMinter <- LavaFlow.loadTileMinter()
-      self.gameboard.append(<- tileMinter.mintEmptyTile())
-      // initialize the game board with tiles and items
-      while(self.gameboard.length < LavaFlow.gameboardSize) {
-        let newTile <- tileMinter.mintTile()
-        self.gameboard.append(<- newTile) 
-      }
-
-      LavaFlow.saveTileMinter(minter: <- tileMinter)
     }
 
     pub fun startGame() {
@@ -314,7 +335,7 @@ pub contract LavaFlow {
     pub var totalSupply: UInt
 
     init() {
-      self.idCount = UInt(1)
+      self.idCount = UInt(0)
       self.totalSupply = 0
     }
 
@@ -324,11 +345,19 @@ pub contract LavaFlow {
       let randomStat1 = LavaFlow.rng.runRNG(10)
       let randomStat2 = LavaFlow.rng.runRNG(10)
       let randomStat3 = LavaFlow.rng.runRNG(10)
+      log("randomStat1")
+      log(randomStat1)
+      log("randomStat2")
+      log(randomStat2)
+      log("randomStat3")
+      log(randomStat3)
+      emit MintedPlayer(id: self.idCount, name: name, class: class, intelligence: randomStat1, strength: randomStat2, cunning: randomStat3)
       return <- create Player(id: self.idCount, name: name, class: class, intelligence: randomStat1, strength: randomStat2, cunning: randomStat3)
     }
 
     pub fun burnPlayer(player: @AnyResource{Unit}){
       if(player.entityType == "EntityPlayer"){
+        emit DestroyedPlayer(id: player.id)
         destroy player
         self.totalSupply = self.totalSupply - UInt(1)
       }
@@ -360,11 +389,13 @@ pub contract LavaFlow {
       self.idCount = self.idCount + UInt(1)
       self.totalSupply = self.totalSupply + UInt(1)
       let points = LavaFlow.rng.runRNG(100)
+      emit MintedItem(id: self.idCount, name: name, points: points, type: type, effect: effect, use: use)
       return <- create Item(id: self.idCount, name: name, points: points, type: type, effect: effect, use: use)
     }
 
     pub fun burnItem(item: @AnyResource{Unit}){
       if(item.entityType == "EntityItem"){
+        emit DestroyedItem(id: item.id)
         destroy item
         self.totalSupply = self.totalSupply - UInt(1)
       }
@@ -394,12 +425,14 @@ pub contract LavaFlow {
     pub fun mintPoints(amount: UInt): @TilePoint {
       self.idCount = self.idCount + UInt(1)
       self.totalSupply = self.totalSupply + UInt(1)
+      emit MintedTilePoint(id: self.idCount, amount: amount)
       return <- create TilePoint(id: self.idCount, amount: amount)
     }
 
     pub fun burnPoints(point: @AnyResource{Unit}){
       if(point.entityType == "EntityTilePoint"){
         self.totalSupply = self.totalSupply - UInt(1)
+        emit DestroyedTilePoint(id: point.id)
         destroy point
       }
     }
@@ -428,12 +461,14 @@ pub contract LavaFlow {
     pub fun mintQuest(name: String, description: String): @Quest {
       self.idCount = self.idCount + UInt(1)
       self.totalSupply = self.totalSupply + UInt(1)
+      emit MintedQuest(id: self.idCount, name: name, description: description)
       return <- create Quest(id: self.idCount, name: name, description: description)
     }
 
     pub fun burnQuest(quest: @AnyResource{Unit}){
       if (quest.entityType == "EntityQuest") {
         self.totalSupply = self.totalSupply - UInt(1)
+        emit DestroyedQuest(id: quest.id)
         destroy quest
       }
     }
@@ -466,24 +501,32 @@ pub contract LavaFlow {
     // using their collection reference
     pub fun mintTile(): @Tile {
       var newTile <- self.mintEmptyTile()
-
       // determine whether an event trigger occurs (items, quest, ft)
       // Run rng to see if we have something on the tile (50% chance)
-      if LavaFlow.rng.runRNG(100) > UInt(50) {
+      let fullTileChance = LavaFlow.rng.runRNG(100)
+      log("fullTileChance")
+      log(fullTileChance)
+      if fullTileChance > UInt(50) {
         // if a tile is allowed to have an event, create a resource to place on the tile
         // determine if the tile should have a quest (40%) | points (40%)| items (20%)
         let eventChance = LavaFlow.rng.runRNG(100)
         if (eventChance > UInt(60)) {
           let questMinter <- LavaFlow.loadQuestMinter()
-          newTile.addUnit(unit: <- questMinter.mintQuest(name: "Quest", description: "Quest description"))
+          let quest <- questMinter.mintQuest(name: "Quest", description: "Quest description")
+          emit AddedQuestToTile(tileId: newTile.id, questId: quest.id)
+          newTile.addUnit(unit: <- quest)
           LavaFlow.saveQuestMinter(minter: <- questMinter)
         } else if (eventChance > UInt(20)) {
           let tilePointMinter <- LavaFlow.loadTilePointMinter()
-          newTile.addUnit(unit: <- tilePointMinter.mintPoints(amount: LavaFlow.rng.runRNG(100)))
+          let tilePoint <- tilePointMinter.mintPoints(amount: LavaFlow.rng.runRNG(100))
+          emit AddedTilePointToTile(tileId: newTile.id, tilePointId: tilePoint.id)
+          newTile.addUnit(unit: <- tilePoint)
           LavaFlow.saveTilePointMinter(minter: <- tilePointMinter)
         } else {
           let itemMinter <- LavaFlow.loadItemMinter()
-          newTile.addUnit(unit: <- itemMinter.mintItem(name: "Item", type:"type", effect: "effect", use: "use"))
+          let item <- itemMinter.mintItem(name: "Item", type:"type", effect: "effect", use: "use")
+          emit AddedItemToTile(tileId: newTile.id, itemId: item.id)
+          newTile.addUnit(unit: <- item)
           LavaFlow.saveItemMinter(minter: <- itemMinter)
         }
       }
@@ -495,11 +538,13 @@ pub contract LavaFlow {
     pub fun mintEmptyTile(): @Tile {
       self.idCount = self.idCount + UInt(1)
       self.totalSupply = self.totalSupply + UInt(1)
+      emit MintedTile(id: self.idCount)
       return <- create Tile(id: self.idCount)
     }
 
     pub fun destroyTile(tile: @Tile) {
       self.totalSupply = self.totalSupply - UInt(1)
+      emit DestroyedTile(id: tile.id)
       var i: UInt = 0
       while i < UInt(tile.container.length){
         let unit <- tile.removeUnit(position: i)
@@ -553,11 +598,30 @@ pub contract LavaFlow {
       self.idCount = self.idCount + UInt(1)
       self.currentGames = self.currentGames + UInt(1)
       let game <- create Game(id: self.idCount, totalPlayerCount: totalPlayerCount)
+      emit MintedGame(id: game.id, playersCount: totalPlayerCount)
+      // create tiles
+      let tileMinter <- LavaFlow.loadTileMinter()
+      let startTile <- tileMinter.mintEmptyTile()
+      emit AddedTileToGame(gameId: game.id, tileId: startTile.id, position: 0)
+      game.gameboard.append(<- startTile)
+      var i = 0
+      while i < LavaFlow.gameboardSize - 2 {
+        let tile <- tileMinter.mintTile()
+        emit AddedTileToGame(gameId: game.id, tileId: tile.id, position: UInt(i + 1))
+        game.gameboard.append(<- tile)
+        i = i + 1
+      }
+      let endTile <- tileMinter.mintEmptyTile()
+      emit AddedTileToGame(gameId: game.id, tileId: endTile.id, position: 100)
+      game.gameboard.append(<- endTile)
+      LavaFlow.saveTileMinter(minter: <- tileMinter)
+
       LavaFlow.games[game.id] <-! game
     }
 
     pub fun destroyGame(game: @Game) {
       self.currentGames = self.currentGames - UInt(1)
+      emit DestroyedGame(id: game.id)
       destroy game
     }
   }
@@ -616,6 +680,10 @@ pub contract LavaFlow {
     }
   }
 
+  pub fun createEmptyPlayerCollection(): @PlayersCollection{
+    return <- create PlayersCollection()
+  }
+
   // Definition of an interface for Item Receiver
   access(all) resource interface ItemReceiver {
     access(all) fun deposit(token: @Item)
@@ -654,6 +722,10 @@ pub contract LavaFlow {
     }
   }
 
+  pub fun createEmptyItemCollection(): @ItemsCollection{
+    return <- create ItemsCollection()
+  }
+
   /************************************************************************
   * SYSTEMS
   *
@@ -667,6 +739,7 @@ pub contract LavaFlow {
       var game <- LavaFlow.games.remove(key: gameId)!
       if !game.isGameStarted && UInt(game.playerTurnOrder.length) == game.totalPlayerCount {
         game.startGame()
+        emit StartedGame(gameId: game.id)
         LavaFlow.games[gameId] <-! game
         self.nextTurn(gameId: gameId)
       } else {
@@ -686,7 +759,7 @@ pub contract LavaFlow {
 
         // set the player position on gameboard
         game.playerTilePositions[player.id] = 0
-
+        emit AddedPlayerToGame(gameId: game.id, playerId: player.id)
         // set the player in the first tile
         let firstTile <- game.gameboard.remove(at: 0)
         firstTile.container.append(<- player)
@@ -696,18 +769,22 @@ pub contract LavaFlow {
     }
     
     pub fun nextTurn(gameId: UInt){
+      log("Next turn")
       var game <- LavaFlow.games.remove(key: gameId)!
-
+      game.incrementTurnCount()
       if game.isGameEnded {
         LavaFlow.games[gameId] <-! game
+        // Do something ... send players back if they win!! ??
         return
       }
-
+      emit NextGameTurn(gameId: gameId)
       // create a copy of the game and put it back into the collection because movementSystem.movePlayer will also pull the game from the collection
       let playerTurnOrder = game.playerTurnOrder
       LavaFlow.games[gameId] <-! game
-
+      log("playerTurnOrder")
+      log(playerTurnOrder)
       // 1. players roll for new positions
+      
       for playerId in playerTurnOrder {
         var game <- LavaFlow.games.remove(key: gameId)!
         let movementForward = LavaFlow.rng.runRNG(6) + UInt(1)
@@ -717,6 +794,9 @@ pub contract LavaFlow {
         if newPosition >= UInt(game.gameboard.length) {
           newPosition = UInt(game.gameboard.length - 1)
         }
+        emit NextPlayerTurn(gameId: game.id, playerId: playerId)
+        log("NextPlayerTurn")
+        log(playerId)
         LavaFlow.games[gameId] <-! game
         LavaFlow.movementSystem.movePlayer(gameId: gameId, playerId: playerId, tilePosition: newPosition)
       }
@@ -727,7 +807,9 @@ pub contract LavaFlow {
       LavaFlow.movementSystem.moveLava(gameId: gameId)
 
       // 4. destroy the players trapped inside the lava
-      LavaFlow.playerSystem.destroyPlayersInLava(gameId: gameId)
+      //LavaFlow.playerSystem.destroyPlayersInLava(gameId: gameId)
+
+      // 5. check if we have winners
 
       self.nextTurn(gameId: gameId)
     }
@@ -743,46 +825,38 @@ pub contract LavaFlow {
       // get a copy of the game's player positions
       let game <- LavaFlow.games.remove(key: gameId)!
       let playerTilePositions = game.playerTilePositions
-      LavaFlow.games[gameId] <-! game 
-        
+
       var i = 0
       for playerId in playerTilePositions.keys {
         // if the player's position sits inside the lava, we destroy the player
         // to destroy the player, get the tile they're positioned on, then get the player
-        if let playerPosition = playerTilePositions[UInt(i)] {
-          let game <- LavaFlow.games.remove(key: gameId)!
+        let playerPosition = playerTilePositions[UInt(i)]!
+        if playerPosition <= game.lastLavaPosition {
+          
+          let tilePlayerPositionedOn <- game.gameboard.remove(at: playerPosition)
+          
+          let player <- tilePlayerPositionedOn.getUnit(id: playerId, type: "EntityPlayer")
 
-          // check player position against last lava position
-          if playerPosition <= game.lastLavaPosition {
-            let tilePlayerPositionedOn <- game.gameboard.remove(at: playerPosition)
-            
-            let player <- tilePlayerPositionedOn.getUnit(id: playerId, type: "EntityPlayer")
+          // TODO: check if player can survive destruction through an item usage
+          // call playerminter destroyPlayer
+          destroy player
+          
+          // puttile back into place
+          game.gameboard.insert(at: playerPosition, <- tilePlayerPositionedOn)
 
-            // TODO: check if player can survive destruction through an item usage
-            destroy player
-            
-            // put game and tile back into place
-            game.gameboard.insert(at: playerPosition, <- tilePlayerPositionedOn)
-            LavaFlow.games[gameId] <-! game
-            
-            LavaFlow.playerSystem.cleanupPlayer(gameId: gameId, playerId: playerId)
-          }
+          // Clean player data
+          game.playerTurnOrder.remove(at: playerId)
+          game.playerReceivers.remove(key: playerId)
+          game.totalPlayerCount = game.totalPlayerCount - UInt(1)
+          game.playerTilePositions.remove(key: playerId)
+          
         }
         i = i + 1
       }
+
+      LavaFlow.games[gameId] <-! game 
     }
 
-    // cleanupPlayer
-    //
-    // clean up the player's state relevant to the gameboard
-    pub fun cleanupPlayer(gameId: UInt, playerId: UInt) {
-      let game <- LavaFlow.games.remove(key: gameId)!
-      game.playerTurnOrder.remove(at: playerId)
-      game.playerReceivers.remove(key: playerId)
-      game.totalPlayerCount = game.totalPlayerCount - UInt(1)
-      game.playerTilePositions.remove(key: playerId)
-      LavaFlow.games[gameId] <-! game
-    }
   }
 
   // MovementSystem manages player and lava movements
@@ -800,7 +874,8 @@ pub contract LavaFlow {
       // put back the current player tile
       game.gameboard.insert(at: currentTilePosition, <- currentTile)
 
-      // get the destination tile given tileId
+      // get the destination tile given tileId 
+      emit MovedPlayerToTile(gameId: gameId, playerId: playerId, tilePosition: tilePosition)
       let destinationTile <- game.gameboard.remove(at: tilePosition)
 
       // put the player inside the destinationTile
@@ -815,19 +890,33 @@ pub contract LavaFlow {
     pub fun moveLava(gameId: UInt){
       let game <- LavaFlow.games.remove(key: gameId)!
       if game.turnCount > LavaFlow.lavaTurnStart {
-        let lavaMovement = LavaFlow.rng.runRNG(6) + UInt(1)
-        // increment by 1 because the last tile is already covered with lava
-        var lastLavaTilePosition = game.lastLavaPosition + UInt(1)
-        while lastLavaTilePosition < lastLavaTilePosition + lavaMovement {
-          // get the tile at lastLavaTilePosition
-          let tile <- game.gameboard.remove(at: lastLavaTilePosition)
-          tile.coverWithLava()
-          game.gameboard.insert(at: lastLavaTilePosition, <- tile)
-          lastLavaTilePosition = lastLavaTilePosition + UInt(1)
+        var lavaMovement = LavaFlow.rng.runRNG(6) + UInt(1) // 6
+        log("lavaMovement")
+        log(lavaMovement)
+        var lastLavaPosition = game.lastLavaPosition
+        // check that lastLavaTilePosition + lavaMovement <= gameboardSize - 1
+        if(lastLavaPosition + lavaMovement > UInt(LavaFlow.gameboardSize - 1) ){
+          lavaMovement = UInt(LavaFlow.gameboardSize) - lastLavaPosition - UInt(1)
         }
 
+        while lastLavaPosition < game.lastLavaPosition + lavaMovement {
+          // get the tile at lastLavaTilePosition
+          let tile <- game.gameboard.remove(at: lastLavaPosition)
+          tile.coverWithLava()
+          game.gameboard.insert(at: lastLavaPosition, <- tile)
+          lastLavaPosition = lastLavaPosition + UInt(1)
+        }
+
+        game.lastLavaPosition = lastLavaPosition
+        emit MovedLava(gameId: gameId, lastPosition: game.lastLavaPosition)
         // keep track of the lava position to act on the player's status later
-        game.lastLavaPosition = lastLavaTilePosition
+         
+        log("lastLavaPosition")
+        log(game.lastLavaPosition)
+      }
+
+      if(game.lastLavaPosition == UInt(LavaFlow.gameboardSize - 1)){
+        game.endGame()
       }
 
       LavaFlow.games[gameId] <-! game
@@ -857,6 +946,17 @@ pub contract LavaFlow {
     // init the seed and call random function to generate a first seed
     init() {
       self.seed = UInt(0)
+      self.random(seed: UInt(12345))
+    }
+
+    // Random function that takes a seed and update it with a random number
+    access(all) fun random(seed: UInt) {
+      let tmpSeed = seed % UInt(2147483647)
+      if (tmpSeed <= UInt(0)) {
+        self.seed = tmpSeed + UInt(2147483646)
+      } else {
+        self.seed = tmpSeed
+      }
     }
     
     // next gets the next generated number
@@ -869,19 +969,15 @@ pub contract LavaFlow {
     access(all) fun runRNG(_ n: UInt): UInt {
       var tmpSeed = self.next()
       while(tmpSeed > n) {
-        tmpSeed = tmpSeed % UInt(n)
+        tmpSeed = tmpSeed % n
       }
-      if (tmpSeed == UInt(0)) {
-        return UInt(1)
-      } else {
-        return tmpSeed
-      }
+      return tmpSeed
     }
   }
 
   init(){
     self.rng = RNG()
-    self.gameboardSize = 100
+    self.gameboardSize = 25
     self.lavaTurnStart = UInt(3)
     self.games <- {}
 
@@ -909,7 +1005,6 @@ pub contract LavaFlow {
 
     let gameMinter <- self.createGameMinter()
     self.saveGameMinter(minter: <- gameMinter)
-
-    
+   
   }
 }
