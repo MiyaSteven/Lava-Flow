@@ -3,14 +3,44 @@
 // Their entrance have been destroyed. They must find a way out while finding as many treasures as possible because they're greedy sons of pigs.
 pub contract LavaFlow {
 
-
-    event MintedPlayer()
-
     /**************************************************************
     * LAVA FLOW LOCAL GAME WORLD STATE 
     * 
-    * Declare all entities, collections, and systems
+    * Declare all events, entities, collections, and systems
     ***************************************************************/
+
+    // Events record the changes made in the game world
+    event MintedPlayer(playerId: UInt64)
+    event MintedTile(initID: UInt64)
+    event MintedItem(itemId: UInt64)
+    event MintedQuest(questId: UInt64)
+    event MintedTilePoints(tileId: UInt64, amount: UInt64)
+    event MintedEmptyTile(initID: UInt64)
+    event MintedGameboard(gameId: UInt64)
+    event BurnedPlayer(playerId: UInt64)
+    // event BurnedTile()
+    // event BurnedItem()
+    // event BurnedQuest()
+    // event BurnedTilePoints()
+    // event CreatedGame()
+    // event JoinedGame()
+    // event StartedGame()
+    // event EndedGame()
+    // event PlayedUserTurn()
+    event CreatedNewPlayer(id: UInt64) // Not sure if we need this
+    event MovedPlayer(id: UInt64)
+    // event MovedLava()
+    event GetUnit(id: UInt64)
+    event RemovedUnit(id: UInt64)
+    event AddUnitToTile(id: UInt64)
+    event CompleteQuest()
+    event AddedQuest(id: UInt64)
+    event DestroyedQuest(id: UInt64)
+    event AddedPlayer(id: UInt64)
+    event DestroyedPlayer(id: UInt64)
+    event DestroyedTile(tileId: UInt64)
+    // event UsedItem()
+    event CoveredTileWithLava(id: UInt64)
 
     // Systems act upon the game world state
     pub let turnPhaseSystem: TurnPhaseSystem
@@ -184,6 +214,8 @@ pub contract LavaFlow {
         pub fun mintItem(): @Item {
             self.idCount = self.idCount + UInt64(1)
             let points = LavaFlow.rng.runRNG(100)
+
+            emit MintedItem(itemId: self.idCount + UInt64(1))
             return <- create Item(id: self.idCount, name: "placement name", points: points, type: "placement item type", effect: "diarrhea", use: "plunger")
         }
     }
@@ -218,6 +250,7 @@ pub contract LavaFlow {
 
         pub fun mintPoints(amount: UInt64): @TilePoint {
             self.idCount = self.idCount + UInt64(1)
+            emit MintedTilePoints(tileId: self.idCount + UInt64(1), amount: amount)
             return <- create TilePoint(id: self.idCount, amount: amount)
         }
     }
@@ -248,6 +281,7 @@ pub contract LavaFlow {
             let randomStat1 = LavaFlow.rng.runRNG(10)
             let randomStat2 = LavaFlow.rng.runRNG(10)
             let randomStat3 = LavaFlow.rng.runRNG(10)
+            emit MintedPlayer(playerId: UInt64(1))
             return <- create Player(id: UInt64(1), name: "placement name", class: "placement class", intelligence: randomStat1, strength: randomStat2, cunning: randomStat3)
         }
     }
@@ -292,6 +326,7 @@ pub contract LavaFlow {
         pub fun mintQuest(): @Quest {
             let id = self.idCount + UInt64(1)
             self.idCount = self.idCount + UInt64(1)
+            emit MintedQuest(questId: self.idCount + UInt64(1))
             return <- create Quest(id: id, name: "PlaceholderName", description: "PlaceholderDesc")
         }
     }
@@ -383,8 +418,9 @@ pub contract LavaFlow {
             return <- newTile
         }
 
-        // mintEmptyTile creates an tile with an empty container
+        // mintEmptyTile creates a tile with an empty container
         pub fun mintEmptyTile(): @Tile {
+            emit MintedEmptyTile(initID: self.incrementID())
             return <- create Tile(initID: self.incrementID())
         }
 
@@ -427,7 +463,7 @@ pub contract LavaFlow {
                 }
                 self.container.insert(at: i, <- unit)
             }
-
+            emit GetUnit(id: id)
             return <- self.container.remove(at: unitPositionInTileContainer)
         }
 
@@ -438,6 +474,7 @@ pub contract LavaFlow {
 
         destroy(){
             destroy self.container
+            emit DestroyedTile(tileId: UInt64(1))
         }
     }
 
@@ -703,10 +740,12 @@ pub contract LavaFlow {
     // PlayerSystem manages character state, namely attributes and effects
     pub struct PlayerSystem {
         pub fun newPlayer(): @Player {
+            emit CreatedNewPlayer(id: UInt64(1))
             return <-create Player(id: 1, name: "Guest Character", class: "swashbuckler", intelligence: UInt64(1), strength: UInt64(1), cunning: UInt64(1))
         }
 
         pub fun Players(): @Players {
+            emit MovePlayerToPlayers(id: UInt64(1))
             return <-create Players()
         }
 
