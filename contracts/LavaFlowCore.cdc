@@ -20,6 +20,7 @@ pub contract LavaFlow {
   pub event DestroyedGame(id: UInt)
   pub event AddedTileToGame(gameId: UInt, tileId: UInt, position: UInt)
   pub event StartedGame(gameId: UInt)
+  pub event EndedGame(gameId: UInt)
   pub event AddedPlayerToGame(gameId: UInt, playerId: UInt)
   pub event NextGameTurn(gameId: UInt)
   pub event NextPlayerTurn(gameId: UInt, playerId: UInt)
@@ -778,29 +779,11 @@ pub contract LavaFlow {
         return
       }
       emit NextGameTurn(gameId: gameId)
-      // create a copy of the game and put it back into the collection because movementSystem.movePlayer will also pull the game from the collection
-      let playerTurnOrder = game.playerTurnOrder
       LavaFlow.games[gameId] <-! game
-      log("playerTurnOrder")
-      log(playerTurnOrder)
+      // create a copy of the game and put it back into the collection because movementSystem.movePlayer will also pull the game from the collection
+
       // 1. players roll for new positions
-      
-      for playerId in playerTurnOrder {
-        var game <- LavaFlow.games.remove(key: gameId)!
-        let movementForward = LavaFlow.rng.runRNG(6) + UInt(1)
-        var newPosition = game.playerTilePositions[playerId]! + UInt(movementForward)
-
-        // ensure player ends on the last tile if they over-roll
-        if newPosition >= UInt(game.gameboard.length) {
-          newPosition = UInt(game.gameboard.length - 1)
-        }
-        emit NextPlayerTurn(gameId: game.id, playerId: playerId)
-        log("NextPlayerTurn")
-        log(playerId)
-        LavaFlow.games[gameId] <-! game
-        LavaFlow.movementSystem.movePlayer(gameId: gameId, playerId: playerId, tilePosition: newPosition)
-      }
-
+      LavaFlow.movementSystem.movePlayers(gameId: gameId)
       // 2. trigger player effects
 
       // 3. run lava roll
@@ -861,6 +844,30 @@ pub contract LavaFlow {
 
   // MovementSystem manages player and lava movements
   pub struct MovementSystem {
+    pub fun movePlayers(gameId: UInt) {
+      let game <- LavaFlow.games.remove(key: gameId)!
+      let playerTurnOrder = game.playerTurnOrder
+      log("playerTurnOrder")
+      log(playerTurnOrder)
+      LavaFlow.games[gameId] <-! game
+      
+      for playerId in playerTurnOrder {
+          var game <- LavaFlow.games.remove(key: gameId)!
+          let movementForward = LavaFlow.rng.runRNG(6) + UInt(1)
+          var newPosition = game.playerTilePositions[playerId]! + UInt(movementForward)
+
+          // ensure player ends on the last tile if they over-roll
+          if newPosition >= UInt(game.gameboard.length) {
+            newPosition = UInt(game.gameboard.length - 1)
+          }
+          emit NextPlayerTurn(gameId: game.id, playerId: playerId)
+          log("NextPlayerTurn")
+          log(playerId)
+          LavaFlow.games[gameId] <-! game
+          LavaFlow.movementSystem.movePlayer(gameId: gameId, playerId: playerId, tilePosition: newPosition)
+      }
+    }
+
     pub fun movePlayer(gameId: UInt, playerId: UInt, tilePosition: UInt) {
       let game <- LavaFlow.games.remove(key: gameId)!
 
@@ -915,7 +922,8 @@ pub contract LavaFlow {
         log(game.lastLavaPosition)
       }
 
-      if(game.lastLavaPosition == UInt(LavaFlow.gameboardSize - 1)){
+      if (game.lastLavaPosition == UInt(LavaFlow.gameboardSize - 1)) {
+        emit EndedGame(gameId: game.id)
         game.endGame()
       }
 
