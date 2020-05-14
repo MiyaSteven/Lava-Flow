@@ -1,5 +1,7 @@
 import LavaFlow from 0x01
-
+// Setup players account
+// We need at least to setup two players account
+// Note: Use account 0x02 & 0x03
 transaction{
 
   prepare(acct: AuthAccount) {

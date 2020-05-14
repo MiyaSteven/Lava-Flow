@@ -72,7 +72,7 @@ pub contract LavaFlow {
   // Parameters: totalPlayerCount: the number of players in a game
   pub fun createGame(totalPlayerCount: UInt){
     pre {
-      totalPlayerCount > UInt(1): "We need at least 2 players"
+      totalPlayerCount > UInt(1): "Game need at least 2 players"
     }
     let gameMinter <- self.loadGameMinter()
     gameMinter.mintGame(totalPlayerCount: totalPlayerCount)
@@ -91,7 +91,9 @@ pub contract LavaFlow {
     let game <- LavaFlow.games.remove(key: gameId)!
     if game.isGameStarted {
       panic("Game is already started")
-    }
+    } else if game.totalPlayerCount == UInt(game.playerTurnOrder.length) {
+      panic("Game is full")
+    } 
     LavaFlow.games[gameId] <-! game
     self.gameSystem.addPlayerToGame(gameId: gameId, player: <- player, playerCollectionRef: playerCollectionRef) 
   }
@@ -104,6 +106,8 @@ pub contract LavaFlow {
     let game <- LavaFlow.games.remove(key: gameId)!
     if (game.isGameStarted) {
       panic("Game is already started")
+    } else if game.totalPlayerCount != UInt(game.playerTurnOrder.length) {
+      panic("Not enough players")
     }
     LavaFlow.games[gameId] <-! game
     self.gameSystem.startGame(gameId: gameId)
@@ -247,8 +251,16 @@ pub contract LavaFlow {
       self.container.append(<-unit)
     }
 
+    pub fun addPlayer(player: @Player) {
+      self.playerContainer.append(<-player)
+    }
+
     pub fun removeUnit(position: UInt): @AnyResource{Unit} {
       return <-self.container.remove(at: position)
+    }
+
+    pub fun removePlayer(position: UInt): @Player {
+      return <-self.playerContainer.remove(at: position)
     }
 
     pub fun getPlayer(id: UInt): @LavaFlow.Player {
@@ -264,12 +276,12 @@ pub contract LavaFlow {
       var playerPositionInTileContainer = 0
 
       while i < self.playerContainer.length {
-          let player <- self.playerContainer.remove(at: i)
-          if player.id == id {
-              playerPositionInTileContainer = i
-          }
-          self.playerContainer.insert(at: i, <- player)
-          i = i + 1
+        let player <- self.playerContainer.remove(at: i)
+        if player.id == id {
+          playerPositionInTileContainer = i
+        }
+        self.playerContainer.insert(at: i, <- player)
+        i = i + 1
       }
       return <- self.playerContainer.remove(at: playerPositionInTileContainer)
     }
@@ -374,12 +386,6 @@ pub contract LavaFlow {
       let randomStat1 = LavaFlow.rng.runRNG(10)
       let randomStat2 = LavaFlow.rng.runRNG(10)
       let randomStat3 = LavaFlow.rng.runRNG(10)
-      log("randomStat1")
-      log(randomStat1)
-      log("randomStat2")
-      log(randomStat2)
-      log("randomStat3")
-      log(randomStat3)
       emit MintedPlayer(id: self.idCount, name: name, class: class, intelligence: randomStat1, strength: randomStat2, cunning: randomStat3)
       return <- create Player(id: self.idCount, name: name, class: class, intelligence: randomStat1, strength: randomStat2, cunning: randomStat3)
     }
@@ -533,8 +539,6 @@ pub contract LavaFlow {
       // determine whether an event trigger occurs (items, quest, ft)
       // Run rng to see if we have something on the tile (50% chance)
       let fullTileChance = LavaFlow.rng.runRNG(100)
-      log("fullTileChance")
-      log(fullTileChance)
       if fullTileChance > UInt(50) {
         // if a tile is allowed to have an event, create a resource to place on the tile
         // determine if the tile should have a quest (40%) | points (40%)| items (20%)
@@ -766,7 +770,7 @@ pub contract LavaFlow {
     // startGame
     pub fun startGame(gameId: UInt) {
       var game <- LavaFlow.games.remove(key: gameId)!
-      if !game.isGameStarted && UInt(game.playerTurnOrder.length) == game.totalPlayerCount {
+      if !game.isGameStarted {
         game.startGame()
         LavaFlow.games[gameId] <-! game
         self.nextTurn(gameId: gameId)
@@ -790,14 +794,13 @@ pub contract LavaFlow {
         emit AddedPlayerToGame(gameId: game.id, playerId: player.id)
         // set the player in the first tile
         let firstTile <- game.gameboard.remove(at: 0)
-        firstTile.container.append(<- player)
+        firstTile.playerContainer.append(<- player)
         game.gameboard.insert(at: 0, <- firstTile)  
       }
       LavaFlow.games[gameId] <-! game
     }
     
     pub fun nextTurn(gameId: UInt){
-      log("Next turn")
       var game <- LavaFlow.games.remove(key: gameId)!
       game.incrementTurnCount()
       if game.isGameEnded {
@@ -820,7 +823,7 @@ pub contract LavaFlow {
       for position in newGame.playerTilePositions.values {
         if(position == UInt(newGame.gameboard.length - 1)) {
           // player in last tile
-          lastTilePlayersIds.append(i)
+          lastTilePlayersIds.append(newGame.playerTilePositions.keys[i])
         }
         i = i + UInt(1)
       }
@@ -833,8 +836,14 @@ pub contract LavaFlow {
         newGame.gameboard.insert(at: newGame.gameboard.length - 1, <- tile)
         // send back the player
         newGame.playerReceivers[playerId]!.deposit(token: <- player)
-
-        newGame.playerTurnOrder.remove(at: playerId)
+        // this below might not work! we need to remove at index from an array
+        var j = 0
+        for playerTurnId in newGame.playerTurnOrder{
+          if playerTurnId == playerId{
+            newGame.playerTurnOrder.remove(at: j)
+          }
+          j = j + 1
+        }
         newGame.playerReceivers.remove(key: playerId)
         newGame.totalPlayerCount = newGame.totalPlayerCount - UInt(1)
         newGame.playerTilePositions.remove(key: playerId)
@@ -851,11 +860,8 @@ pub contract LavaFlow {
       // 3. run lava roll
       LavaFlow.movementSystem.moveLava(gameId: gameId)
 
-      // 4. check 
       // 4. destroy the players trapped inside the lava
       //LavaFlow.playerSystem.destroyPlayersInLava(gameId: gameId)
-
-      // 5. check if we have winners
 
       self.nextTurn(gameId: gameId)
     }
@@ -891,7 +897,13 @@ pub contract LavaFlow {
           game.gameboard.insert(at: playerPosition, <- tilePlayerPositionedOn)
 
           // Clean player data
-          game.playerTurnOrder.remove(at: playerId)
+          var j = 0
+          for playerTurnId in game.playerTurnOrder{
+            if playerTurnId == playerId{
+              game.playerTurnOrder.remove(at: j)
+            }
+            j = j + 1
+          }
           game.playerReceivers.remove(key: playerId)
           game.totalPlayerCount = game.totalPlayerCount - UInt(1)
           game.playerTilePositions.remove(key: playerId)
@@ -910,8 +922,6 @@ pub contract LavaFlow {
     pub fun movePlayers(gameId: UInt) {
       let game <- LavaFlow.games.remove(key: gameId)!
       let playerTurnOrder = game.playerTurnOrder
-      log("playerTurnOrder")
-      log(playerTurnOrder)
       LavaFlow.games[gameId] <-! game
       
       for playerId in playerTurnOrder {
@@ -926,11 +936,6 @@ pub contract LavaFlow {
           emit NextPlayerTurn(gameId: game.id, playerId: playerId)
 
           LavaFlow.games[gameId] <-! game
-
-          log("playerId")
-          log(playerId)
-          log("newPosition")
-          log(newPosition)
           LavaFlow.movementSystem.movePlayer(gameId: gameId, playerId: playerId, tilePosition: newPosition)
       }
     }
@@ -941,7 +946,7 @@ pub contract LavaFlow {
       // get the current player tile => @startTile
       let currentTilePosition = game.playerTilePositions[playerId]!
       let currentTile <- game.gameboard.remove(at: currentTilePosition)
-
+      
       // player is guaranteed to exist in the tile because we store and read the current player positions 
       let player <- currentTile.getPlayer(id: playerId)
 
@@ -953,7 +958,7 @@ pub contract LavaFlow {
       let destinationTile <- game.gameboard.remove(at: tilePosition)
 
       // put the player inside the destinationTile
-      destinationTile.container.append(<- player)
+      destinationTile.playerContainer.append(<- player)
 
       // put back the @destinationTile
       game.gameboard.insert(at: tilePosition, <- destinationTile)
@@ -968,8 +973,6 @@ pub contract LavaFlow {
       let game <- LavaFlow.games.remove(key: gameId)!
       if game.turnCount > LavaFlow.lavaTurnStart {
         var lavaMovement = LavaFlow.rng.runRNG(6) + UInt(1) // 6
-        log("lavaMovement")
-        log(lavaMovement)
         var lastLavaPosition = game.lastLavaPosition
         // check that lastLavaTilePosition + lavaMovement <= gameboardSize - 1
         if(lastLavaPosition + lavaMovement > UInt(LavaFlow.gameboardSize - 1) ){
@@ -986,10 +989,7 @@ pub contract LavaFlow {
 
         game.lastLavaPosition = lastLavaPosition
         emit MovedLava(gameId: gameId, lastPosition: game.lastLavaPosition)
-        // keep track of the lava position to act on the player's status later
-         
-        log("lastLavaPosition")
-        log(game.lastLavaPosition)
+
       }
 
       if (game.lastLavaPosition == UInt(LavaFlow.gameboardSize - 1)) {
