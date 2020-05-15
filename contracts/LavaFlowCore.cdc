@@ -26,11 +26,12 @@ pub contract LavaFlow {
   pub event NextPlayerTurn(gameId: UInt, playerId: UInt)
   pub event MovedPlayerToTile(gameId: UInt, playerId: UInt, tilePosition: UInt)
   pub event MovedLava(gameId: UInt, lastPosition: UInt)
+  pub event PlayerUsedItem(gameId: UInt, playerId: UInt, itemId: UInt)
+  pub event PlayerPickedItem(gameId: UInt, playerId: UInt, itemId: UInt)
   
   pub event PlayerEndedGame(gameId: UInt, playerId: UInt)
   pub event TransferredPlayer(gameId: UInt, playerId: UInt)
   pub event TransferredTokens(gameId: UInt, amount: UInt)
-  pub event PlayerPickedItem(gameId: UInt, playerId: UInt, itemId: UInt)
   pub event PlayerPickedTilePoint(gameId: UInt, playerId: UInt, tilePointId: UInt)
   pub event PlayerCompletedQuest(gameId: UInt, playerId: UInt, questId: UInt)
   pub event PlayerRewardedItem(gameId: UInt, playerId: UInt, itemId: UInt)
@@ -190,6 +191,24 @@ pub contract LavaFlow {
       }
     }
 
+    access(all) fun getLavaSurfboard(): @Item? {
+      if self.equipments.length > 0 {
+        var i = 0
+        while i < self.equipments.length {
+          let item <- self.equipments.remove(at: i)
+          // item of type 0 is a LavaSurfboard
+          if item.type == UInt(0) {
+            return <-item
+          }
+          self.equipments.insert(at: i, <-item)
+          i = i + 1
+        }
+        return <- self.equipments.remove(at: 0)
+      } else {
+        return nil
+      }
+    }
+
     destroy() {
       var i = 0
       while i < self.equipments.length {
@@ -207,7 +226,7 @@ pub contract LavaFlow {
     pub let id: UInt
     pub let type: UInt
     // Type
-    // 1. LavaSurfboard - save a Player if the lava ever reaches them. Move Player +1 ahead. Durability = 1...3
+    // 1. LavaSurfboard - save a Player if the lava ever reaches them. Move Player +1 ahead of Lava. Durability = 1...3
     // 2. BearTrap - hurts the Player on pickup. Disable movement. Durability = 1. Movement = 0.
     // 3. Jetpack - boosts the Player by a large number of tiles. Durability = 1...3. Move Player +2 ahead. 
     // 4. Slime - decreases the Player movement. Durability = 1...3. Movement -1.
@@ -662,29 +681,6 @@ pub contract LavaFlow {
     pub fun destroyTile(tile: @Tile) {
       self.totalSupply = self.totalSupply - UInt(1)
       emit DestroyedTile(id: tile.id)
-      var i: UInt = 0
-      while i < UInt(tile.container.length){
-        let unit <- tile.removeUnit(position: i)
-        if(unit.entityType == "EntityPlayer"){
-          let playerMinter <- LavaFlow.loadPlayerMinter()
-          playerMinter.burnPlayer(player: <- unit)
-          LavaFlow.savePlayerMinter(minter: <- playerMinter)
-        } else if(unit.entityType == "EntityItem"){
-          let itemMinter <- LavaFlow.loadItemMinter()
-          itemMinter.burnItem(item: <- unit)
-          LavaFlow.saveItemMinter(minter: <- itemMinter)
-        } else if(unit.entityType == "EntityTilePoint"){
-          let tilePointMinter <- LavaFlow.loadTilePointMinter()
-          tilePointMinter.burnPoints(point: <- unit)
-          LavaFlow.saveTilePointMinter(minter: <- tilePointMinter)
-        } else if(unit.entityType == "EntityQuest"){
-          let questMinter <- LavaFlow.loadQuestMinter()
-          questMinter.burnQuest(quest: <- unit)
-          LavaFlow.saveQuestMinter(minter: <- questMinter)
-        } 
-        i = i + UInt(1)
-      }
-      
       destroy tile
     }
   }
@@ -970,46 +966,72 @@ pub contract LavaFlow {
       log("Destroy player in tile")
       // get a copy of the game's player positions
       let game <- LavaFlow.games.remove(key: gameId)!
+      let playerTilePositionKeys = game.playerTilePositions.keys
+      LavaFlow.games[gameId] <-! game 
       
       var i = 0
-      for playerId in game.playerTilePositions.keys {
+      // iterate through all the player's current tile positions
+      for playerId in playerTilePositionKeys {
         log("PlayerId")
         log(playerId)
-        // if the player's position sits inside the lava, we destroy the player
-        // to destroy the player, get the tile they're positioned on, then get the player
+
+        // get the player's current position and the last lava position for death verification
+        let game <- LavaFlow.games.remove(key: gameId)!
         let playerPosition = game.playerTilePositions[playerId]!
-        if playerPosition <= game.lastLavaPosition {
-          
+        let lastLavaPosition = game.lastLavaPosition
+        LavaFlow.games[gameId] <-! game 
+        
+        // if the player is in lava, destroy the player
+        // however, if the player has a surfboard, they are moved ahead of the lava
+        if playerPosition <= lastLavaPosition {
+          // get the damn player
+          let game <- LavaFlow.games.remove(key: gameId)!
           let tilePlayerPositionedOn <- game.gameboard.remove(at: playerPosition)
-          
           let player <- tilePlayerPositionedOn.getPlayer(id: playerId)
+          LavaFlow.games[gameId] <-! game
 
-          // TODO: check if player can survive destruction through an item usage
-          // call playerminter destroyPlayer
-          destroy player
-          
-          // puttile back into place
-          game.gameboard.insert(at: playerPosition, <- tilePlayerPositionedOn)
+          // get and use the surfboard if it exists, and save the player
+          let surfboard <- player.getLavaSurfboard()
+          if surfboard != nil {
+            // kill the player because they're dumb and don't have a surfboard
+            let game <- LavaFlow.games.remove(key: gameId)!
+            destroy player
+            game.gameboard.insert(at: playerPosition, <- tilePlayerPositionedOn)
 
-          // Clean player data
-          var j = 0
-          while j < game.playerTurnOrder.length {
-            if game.playerTurnOrder[j] == playerId {
-              game.playerTurnOrder.remove(at: j)
+            // clean up player data from game world
+            var j = 0
+            while j < game.playerTurnOrder.length {
+              if game.playerTurnOrder[j] == playerId {
+                game.playerTurnOrder.remove(at: j)
+              }
+              j = j + 1
             }
-            j = j + 1
+            game.playerReceivers.remove(key: playerId)
+            game.totalPlayerCount = game.totalPlayerCount - UInt(1)
+            game.playerTilePositions.remove(key: playerId)
+            LavaFlow.games[gameId] <-! game
+            
+          } else {
+            // place everything back into their respective containers: game, player, tile
+            let game <- LavaFlow.games.remove(key: gameId)!
+            emit PlayerUsedItem(gameId: gameId, playerId: playerId, itemId: surfboard?.id!)
+            surfboard?.decreaseDurability()
+            if surfboard?.durability == UInt(0) {
+              destroy surfboard
+            } else {
+              player.equipments.insert(at: 0, <- surfboard!)    
+            }
+            tilePlayerPositionedOn.playerContainer.append(<- player)
+            game.gameboard.insert(at: playerPosition, <- tilePlayerPositionedOn)
+            LavaFlow.games[gameId] <-! game
+
+            // the surfboard saves the player by moving them on step ahead of the lava
+            LavaFlow.movementSystem.movePlayer(gameId: gameId, playerId: playerId, tilePosition: lastLavaPosition + UInt(1))
           }
-          game.playerReceivers.remove(key: playerId)
-          game.totalPlayerCount = game.totalPlayerCount - UInt(1)
-          game.playerTilePositions.remove(key: playerId)
-          
         }
         i = i + 1
       }
-
-      LavaFlow.games[gameId] <-! game 
     }
-
   }
 
   // MovementSystem manages player and lava movements
@@ -1077,12 +1099,15 @@ pub contract LavaFlow {
           postPositionEffect = postPositionEffect - UInt(1)
         }
 
+        emit PlayerUsedItem(gameId: gameId, playerId: playerId, itemId: activeItem?.id!)
         activeItem?.decreaseDurability()
         if activeItem?.durability == UInt(0) {
           destroy activeItem
         } else {
           player.equipments.insert(at: 0, <- activeItem!)    
         }
+
+        
       }
 
       // get the destination tile given tileId 
@@ -1092,6 +1117,7 @@ pub contract LavaFlow {
       // check if tile contains items
       if destinationTile.itemContainer.length > 0 {
         let item <- destinationTile.removeItem(position: 0)
+        emit PlayerPickedItem(gameId: gameId, playerId: playerId, itemId: item.id)
         player.equipments.append(<-item)
       }
       
