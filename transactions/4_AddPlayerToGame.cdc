@@ -2,8 +2,7 @@ import LavaFlow from 0x01
 // Add a player to the game
 // Note: Both 0x02 and 0x03 have to send this transaction
 // Update the player token id (line 17) and the gameId (line 22)
-transaction{
-
+transaction {
   let player: @LavaFlow.Player
   let playerCollectionRef: &{LavaFlow.PlayerReceiver}
   prepare(acct: AuthAccount) {

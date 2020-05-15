@@ -490,15 +490,15 @@ pub contract LavaFlow {
     }
   }
 
-  access(self) fun createTilePointMinter(): @TilePointMinter{
+  access(self) fun createTilePointMinter(): @TilePointMinter {
     return <- create TilePointMinter()
   }
 
-  access(self) fun saveTilePointMinter(minter: @TilePointMinter){
+  access(self) fun saveTilePointMinter(minter: @TilePointMinter) {
     self.account.save(<- minter, to: /storage/TilePointMinter)
   }
 
-  access(self) fun loadTilePointMinter(): @TilePointMinter{
+  access(self) fun loadTilePointMinter(): @TilePointMinter {
     return <- self.account.load<@TilePointMinter>(from: /storage/TilePointMinter)!
   }
 
@@ -517,7 +517,7 @@ pub contract LavaFlow {
       return <- create Quest(id: self.idCount, name: name, description: description)
     }
 
-    pub fun burnQuest(quest: @AnyResource{Unit}){
+    pub fun burnQuest(quest: @AnyResource{Unit}) {
       if (quest.entityType == "EntityQuest") {
         self.totalSupply = self.totalSupply - UInt(1)
         emit DestroyedQuest(id: quest.id)
