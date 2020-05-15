@@ -5,7 +5,7 @@ import LavaFlow from 0x01
 transaction{
 
   prepare(acct: AuthAccount) {
-    let receiverWallet = getAccount(0x02)
+    let receiverWallet = getAccount(0x03)
     let playeCollectionRef = receiverWallet
       .getCapability(/public/PlayersCollection)!
       .borrow<&{LavaFlow.PlayerReceiver}>()!

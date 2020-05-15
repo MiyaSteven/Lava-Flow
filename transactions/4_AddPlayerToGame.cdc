@@ -14,7 +14,7 @@ transaction{
       log("Player collection ref exists")
     }
     let playerCollection <- acct.load<@LavaFlow.PlayersCollection>(from: /storage/PlayersCollection)!
-    self.player <- playerCollection.withdraw(id: UInt(1))
+    self.player <- playerCollection.withdraw(id: UInt(2))
     acct.save<@LavaFlow.PlayersCollection>(<- playerCollection, to: /storage/PlayersCollection)
   }
 

@@ -6,8 +6,8 @@ transaction{
   }
 
   execute{
-    LavaFlow.startGame(gameId: UInt(1))
-    log("Played Game")
+    LavaFlow.nextTurn(gameId: UInt(1))
+    log("Played next turn Game")
   }
 }
  
