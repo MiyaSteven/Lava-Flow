@@ -177,7 +177,7 @@ pub contract LavaFlow {
       var i = 0
       while i < self.equipments.length {
         let itemMinter <- LavaFlow.loadItemMinter()
-        itemMinter.burnItem(item: <- self.equipments.remove(at: i))
+        // itemMinter.burnItem(item: <- self.equipments.remove(at: i))
         LavaFlow.saveItemMinter(minter: <- itemMinter)
         i = i + 1
       }
@@ -186,23 +186,20 @@ pub contract LavaFlow {
   }
 
   // Item is an individual item that exists in the game world 
-  pub resource Item: Unit {
+  pub resource Item {
     pub let id: UInt
-    pub let name: String
-    pub let points: UInt
     pub let type: String
-    pub let effect: String
-    pub let use: String
-    pub let entityType: String
+    // Types
+    // 1. LavaSurfboard - save a Player if the lava ever reaches them. Move Player +1 ahead. Durability = 1...3
+    // 2. BearTrap - hurts the Player on pickup. Disable movement. Durability = 1. Movement = 0.
+    // 3. Jetpack - boosts the Player by a large number of tiles. Durability = 1...3. Move Player +2 ahead. 
+    // 4. Slime - decreases the Player movement. Durability = 1...3. Movement -1.
+    pub let durability: UInt // max number of usage
 
-    init(id: UInt, name: String, points: UInt, type: String, effect: String, use: String) {
+    init(id: UInt, type: String, durability: UInt) {
       self.id = id
-      self.name = name
-      self.points = points
       self.type = type
-      self.effect = effect
-      self.use = use
-      self.entityType = "EntityItem"
+      self.durability = durability
     }
   }
 
@@ -953,6 +950,10 @@ pub contract LavaFlow {
       for playerId in playerTurnOrder {
         var game <- LavaFlow.games.remove(key: gameId)!
         let movementForward = LavaFlow.rng.runRNG(6) + UInt(1)
+
+        // loop through the equipments, and add them, multiply to the movementForward
+        // check if item is one time use, then destroy
+
         var newPosition = game.playerTilePositions[playerId]! + UInt(movementForward)
 
         // ensure player ends on the last tile if they over-roll
