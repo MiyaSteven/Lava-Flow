@@ -2,10 +2,9 @@ import LavaFlow from 0x01
 // Mint and transfer players token
 // Note: Use account 0x01 since he's the one controlling the minter
 // Send the transaction twice, One for 0x02 and the other for 0x03
-transaction{
-
+transaction {
   prepare(acct: AuthAccount) {
-    let receiverWallet = getAccount(0x02)
+    let receiverWallet = getAccount(0x03)
     let playeCollectionRef = receiverWallet
       .getCapability(/public/PlayersCollection)!
       .borrow<&{LavaFlow.PlayerReceiver}>()!
@@ -18,6 +17,5 @@ transaction{
     acct.save<@LavaFlow.PlayerMinter>(<- playerMinter, to: /storage/PlayerMinter )
     log("Player minted and transfered")
   }
-  
 }
  
