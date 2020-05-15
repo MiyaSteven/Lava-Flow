@@ -473,15 +473,15 @@ pub contract LavaFlow {
     }
   }
 
-  access(self) fun createTilePointMinter(): @TilePointMinter{
+  access(self) fun createTilePointMinter(): @TilePointMinter {
     return <- create TilePointMinter()
   }
 
-  access(self) fun saveTilePointMinter(minter: @TilePointMinter){
+  access(self) fun saveTilePointMinter(minter: @TilePointMinter) {
     self.account.save(<- minter, to: /storage/TilePointMinter)
   }
 
-  access(self) fun loadTilePointMinter(): @TilePointMinter{
+  access(self) fun loadTilePointMinter(): @TilePointMinter {
     return <- self.account.load<@TilePointMinter>(from: /storage/TilePointMinter)!
   }
 
@@ -500,7 +500,7 @@ pub contract LavaFlow {
       return <- create Quest(id: self.idCount, name: name, description: description)
     }
 
-    pub fun burnQuest(quest: @AnyResource{Unit}){
+    pub fun burnQuest(quest: @AnyResource{Unit}) {
       if (quest.entityType == "EntityQuest") {
         self.totalSupply = self.totalSupply - UInt(1)
         emit DestroyedQuest(id: quest.id)
@@ -882,7 +882,7 @@ pub contract LavaFlow {
       for playerId in playerTilePositions.keys {
         // if the player's position sits inside the lava, we destroy the player
         // to destroy the player, get the tile they're positioned on, then get the player
-        let playerPosition = playerTilePositions[UInt(i)]!
+        let playerPosition = playerTilePositions[playerId]!
         if playerPosition <= game.lastLavaPosition {
           
           let tilePlayerPositionedOn <- game.gameboard.remove(at: playerPosition)
