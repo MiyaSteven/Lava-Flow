@@ -217,6 +217,7 @@ pub contract LavaFlow {
     }
 
     destroy() {
+      emit DestroyedPlayer(id: self.id)
       destroy self.equipments
       destroy self.tilePoints
       let playerMinter <- LavaFlow.loadPlayerMinter()
@@ -250,6 +251,7 @@ pub contract LavaFlow {
     }
 
     destroy(){
+      emit DestroyedItem(id: self.id)
       let itemMinter <- LavaFlow.loadItemMinter()
       itemMinter.decreaseSupply()
       LavaFlow.saveItemMinter(minter: <- itemMinter)
@@ -1025,7 +1027,7 @@ pub contract LavaFlow {
         game.gameboard.append(<- lastTile)
         // send back the player
         game.playerReceivers[playerId]!.deposit(token: <- player)
-        
+        emit PlayerEndedGame(gameId: gameId, playerId: playerId)
         // clean the game state
         var j = 0
         while j < game.playerTurnOrder.length {
