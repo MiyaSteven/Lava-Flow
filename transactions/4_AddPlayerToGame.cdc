@@ -17,7 +17,7 @@ transaction {
     acct.save<@LavaFlow.PlayersCollection>(<- playerCollection, to: /storage/PlayersCollection)
   }
 
-  execute{
+  execute {
     LavaFlow.joinGame(gameId: UInt(1), player: <- self.player, playerCollectionRef: self.playerCollectionRef)
     log("Player added to Game")
   }

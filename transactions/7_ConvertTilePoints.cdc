@@ -1,7 +1,7 @@
 import LavaFlow from 0x01
 import LavaToken from 0x02
 
-transaction{
+transaction {
 
   let minterRef: &{LavaToken.PublicLavaTokenMinter}
   
@@ -14,7 +14,7 @@ transaction{
     self.vaultReference = acct
       .getCapability(/public/LavaTokenVault)!
       .borrow<&{LavaToken.Receiver}>()!
-    let player <- playerCollection.withdraw(id: UInt(1))
+    let player <- playerCollection.withdraw(id: UInt(2))
     let tilePoints <- player.removeTilePoints(position: UInt(0))
     log("TilePoints amount")
     log(tilePoints.amount)

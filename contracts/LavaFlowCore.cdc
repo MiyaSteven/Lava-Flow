@@ -2,8 +2,7 @@
 // The adventurers seeking riches are caught in an erupting treasure-filled volcano dungeon, Flodor. 
 // Their entrance have been destroyed. They must find a way out while finding as many treasures as possible because they're greedy sons of pigs.
 pub contract LavaFlow {
-  
-  pub event MintedPlayer(id id: UInt,name name: String,class class: String,intelligence intelligence: UInt,strength strength: UInt,cunning cunning: UInt)
+  pub event MintedPlayer(id id: UInt, name name: String, class class: String, intelligence intelligence: UInt, strength strength: UInt, cunning cunning: UInt)
   pub event DestroyedPlayer(id: UInt)
   pub event MintedItem(id: UInt, type: UInt, durability: UInt)
   pub event DestroyedItem(id: UInt)
