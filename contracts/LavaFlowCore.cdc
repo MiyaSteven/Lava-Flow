@@ -1284,6 +1284,8 @@ pub contract LavaFlow {
       if (game.lastLavaPosition == UInt(LavaFlow.gameboardSize - 1)) {
         emit EndedGame(gameId: game.id)
         game.endGame()
+        LavaFlow.games[gameId] <-! game
+        return
       }
       
       LavaFlow.games[gameId] <-! game
