@@ -64,7 +64,7 @@ pub contract LavaFlow {
   pub event AddedTileToGame(gameId: UInt, tileId: UInt, position: UInt)
 
   /*
-   * PLAYER EVENTS
+   * QUEST EVENTS
    */
   pub event MintedQuest(id: UInt, name: String, description: String)
   pub event DestroyedQuest(id: UInt)
