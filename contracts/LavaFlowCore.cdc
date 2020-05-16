@@ -29,14 +29,17 @@ pub contract LavaFlow {
   pub event PlayerUsedItem(gameId: UInt, playerId: UInt, itemId: UInt)
   pub event PlayerPickedItem(gameId: UInt, playerId: UInt, itemId: UInt)
   pub event PlayerPickedTilePoints(gameId: UInt, playerId: UInt, tilePointsId: UInt)
-  
+
   pub event PlayerEndedGame(gameId: UInt, playerId: UInt)
   pub event TransferredPlayer(gameId: UInt, playerId: UInt)
   pub event TransferredTokens(gameId: UInt, amount: UInt)
   pub event PlayerPickedTilePoint(gameId: UInt, playerId: UInt, tilePointId: UInt)
+  pub event PlayerStartedQuest(gameId: UInt, playerId: UInt, questId: UInt)
   pub event PlayerCompletedQuest(gameId: UInt, playerId: UInt, questId: UInt)
-  pub event PlayerRewardedItem(gameId: UInt, playerId: UInt, itemId: UInt)
   pub event PlayerFailedQuest(gameId: UInt, playerId: UInt, questId: UInt)
+  pub event QuestRewardedItem(gameId: UInt, playerId: UInt, itemId: UInt, questId: UInt)
+  pub event QuestRewardedPoints(gameId: UInt, playerId: UInt, amount: UInt, questId: UInt)
+
   
   /************************************************************************
   * Global variables
@@ -286,7 +289,54 @@ pub contract LavaFlow {
       self.id = id
       self.name = name
       self.description = description
-      self.requirements = []
+
+      // Roll for quest requirements
+      var requirements: [QuestRequirement] = []
+      var numberOfRequirements = LavaFlow.rng.runRNG(3) + UInt(1)
+      var attributes = ["strength", "intelligence", "cunning"]
+      var i = 0
+      // a quest may have a variadic number of requirements
+      while UInt(i) < numberOfRequirements {
+        // 1. roll for value
+        let requirementVal = LavaFlow.rng.runRNG(10) + UInt(1)
+
+        // 2. roll for attribute
+        let selectedAttribute = LavaFlow.rng.runRNG(UInt(attributes.length))
+        var attribute = attributes.remove(at: selectedAttribute)
+
+        // 3. roll for operation
+        let operationType = LavaFlow.rng.runRNG(5)
+
+        requirements.append(QuestRequirement(attribute: attribute, operation: operationType, value: requirementVal))
+
+        i = i + 1
+      }
+
+      self.requirements = requirements
+    }
+
+    pub fun checkRequirement(operation: UInt, targetVal: UInt, playerAttributeVal: UInt): Bool {
+      if operation == UInt(0) {
+        return playerAttributeVal == targetVal
+
+      } else if operation == UInt(1) {
+        return playerAttributeVal < targetVal
+
+      } else if operation == UInt(2) {
+        return playerAttributeVal <= targetVal
+
+      } else if operation == UInt(3) {
+        return playerAttributeVal > targetVal
+
+      } else if operation == UInt(4) { 
+        return playerAttributeVal >= targetVal
+      }
+
+      return false
+    }      
+
+    pub fun award() {
+        // 1. on quest completion, 
     }
 
     destroy(){
@@ -297,9 +347,8 @@ pub contract LavaFlow {
   }
 
   pub struct QuestRequirement {
-    
-    pub let attribute: String
-    pub let operation: UInt
+    pub let attribute: String // strength, intelligence, cunning
+    pub let operation: UInt // <, <=, >, >=, ==
     pub let value: UInt
 
     init(attribute: String, operation: UInt, value: UInt){
@@ -555,9 +604,9 @@ pub contract LavaFlow {
     pub fun mintPlayers(name: String, class: String): @Player {
       self.idCount = self.idCount + UInt(1)
       self.totalSupply = self.totalSupply + UInt(1)
-      let randomStat1 = LavaFlow.rng.runRNG(10)
-      let randomStat2 = LavaFlow.rng.runRNG(10)
-      let randomStat3 = LavaFlow.rng.runRNG(10)
+      let randomStat1 = LavaFlow.rng.runRNG(10) + UInt(1)
+      let randomStat2 = LavaFlow.rng.runRNG(10) + UInt(1)
+      let randomStat3 = LavaFlow.rng.runRNG(10) + UInt(1)
       emit MintedPlayer(id: self.idCount, name: name, class: class, intelligence: randomStat1, strength: randomStat2, cunning: randomStat3)
       return <- create Player(id: self.idCount, name: name, class: class, intelligence: randomStat1, strength: randomStat2, cunning: randomStat3)
     }
@@ -1189,7 +1238,7 @@ pub contract LavaFlow {
       // put back the current player tile
       game.gameboard.insert(at: currentTilePosition, <- currentTile)
 
-      var postPositionEffect = tilePosition
+      var postItemEffectTilePosition = tilePosition
       // get active item, not surfboard
       let activeItem <- player.getActiveItem()
       if activeItem != nil {
@@ -1198,15 +1247,15 @@ pub contract LavaFlow {
         // 0. LavaSurfboard - save a Player if the lava ever reaches them. Move Player +1 ahead. Durability = 1...3
         // 1. BearTrap - hurts the Player on pickup. Disable movement. Durability = 1. Movement = 0.
         if activeItem?.type == UInt(1) {
-          postPositionEffect = currentTilePosition
+          postItemEffectTilePosition = currentTilePosition
 
         } else if activeItem?.type == UInt(2) {
         // 2. Jetpack - boosts the Player by a large number of tiles. Durability = 1...3. Move Player +2 ahead. 
-          postPositionEffect = postPositionEffect + UInt(2)
+          postItemEffectTilePosition = postItemEffectTilePosition + UInt(2)
 
         } else if activeItem?.type == UInt(3) {
         // 3. Slime - decreases the Player movement. Durability = 1...3. Movement -1.
-          postPositionEffect = postPositionEffect - UInt(1)
+          postItemEffectTilePosition = postItemEffectTilePosition - UInt(1)
         }
 
         emit PlayerUsedItem(gameId: gameId, playerId: playerId, itemId: activeItem?.id!)
@@ -1220,8 +1269,8 @@ pub contract LavaFlow {
       }
 
       // get the destination tile given tileId 
-      emit MovedPlayerToTile(gameId: gameId, playerId: playerId, tilePosition: postPositionEffect)
-      let destinationTile <- game.gameboard.remove(at: postPositionEffect)
+      emit MovedPlayerToTile(gameId: gameId, playerId: playerId, tilePosition: postItemEffectTilePosition)
+      let destinationTile <- game.gameboard.remove(at: postItemEffectTilePosition)
 
       // check if tile contains items
       if destinationTile.itemContainer.length > 0 {
@@ -1236,15 +1285,82 @@ pub contract LavaFlow {
         emit PlayerPickedTilePoints(gameId: gameId, playerId: playerId, tilePointsId: tilePoints.id)
         player.addTilePoint(tilePoints: <- tilePoints)
       }
+
+      // check if a player encounters a quest and where they complete or fail it
+      if destinationTile.questContainer.length > 0 {
+        let quest <- destinationTile.removeQuest(position: 0)
+        emit PlayerStartedQuest(gameId: gameId, playerId: playerId, questId: quest.id)
+
+        var success = true
+        var i = 0
+        while i < quest.requirements.length {
+          var currentRequirement = quest.requirements[i]
+          var attribute = currentRequirement.attribute
+          var targetVal = currentRequirement.value
+          var operation = currentRequirement.operation
+        
+          if attribute == "strength" {
+            if !quest.checkRequirement(operation: operation, targetVal: targetVal, playerAttributeVal: player.strength) {
+              success = false
+            }
+          } else if attribute == "intelligence" {
+            if !quest.checkRequirement(operation: operation, targetVal: targetVal, playerAttributeVal: player.intelligence) {
+              success = false
+            }
+          } else if attribute == "cunning" {
+            if !quest.checkRequirement(operation: operation, targetVal: targetVal, playerAttributeVal: player.cunning) {
+              success = false
+            }
+          }
+       
+          i = i + 1
+        }
+
+        if success {
+          // calculate the chance that a quest "awards" a player with an item or points
+          // as the player moves along the game, the chances to receive a reward increases
+          // i.e. gameboard size = 100, player position = 10: player award chance = 10%
+          emit PlayerCompletedQuest(gameId: gameId, playerId: playerId, questId: quest.id)
+          
+          let awardChanceTarget = postItemEffectTilePosition
+          let playerAwardChance = LavaFlow.rng.runRNG(UInt(LavaFlow.gameboardSize))
+          if awardChanceTarget > playerAwardChance {
+            let awardType = LavaFlow.rng.runRNG(2)
+            if awardType == UInt(0) {
+              // reward item
+              let itemMinter <- LavaFlow.loadItemMinter()
+              let item <- itemMinter.mintItem()
+
+              emit QuestRewardedItem(gameId: gameId, playerId: playerId, itemId: item.id, questId: quest.id)
+
+              player.addEquipment(item: <-item)
+              LavaFlow.saveItemMinter(minter: <- itemMinter)
+            } else {
+              // reward points
+              let tilePointMinter <- LavaFlow.loadTilePointMinter()
+              let points <- tilePointMinter.mintPoints(amount: LavaFlow.rng.runRNG(100))
+
+              emit QuestRewardedPoints(gameId: gameId, playerId: playerId, amount: UInt(points.amount), questId: quest.id)
+
+              player.addTilePoint(tilePoints: <- points)
+              LavaFlow.saveTilePointMinter(minter: <- tilePointMinter)
+            }
+          } 
+        } else {
+          emit PlayerFailedQuest(gameId: gameId, playerId: playerId, questId: quest.id)
+        }
+
+        destinationTile.addQuest(quest: <-quest)
+      }
       
       // put the player inside the destinationTile
       destinationTile.playerContainer.append(<- player)
 
       // put back the @destinationTile
-      game.gameboard.insert(at: postPositionEffect, <- destinationTile)
+      game.gameboard.insert(at: postItemEffectTilePosition, <- destinationTile)
       
       // update the player's new position in the world
-      game.playerTilePositions[playerId] = postPositionEffect
+      game.playerTilePositions[playerId] = postItemEffectTilePosition
       
       LavaFlow.games[gameId] <-! game
     }
@@ -1348,7 +1464,7 @@ pub contract LavaFlow {
 
   init(){
     self.rng = RNG()
-    self.gameboardSize = 100
+    self.gameboardSize = 30
     self.lavaTurnStart = UInt(2)
     self.games <- {}
 
