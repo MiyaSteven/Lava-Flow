@@ -43,7 +43,7 @@ access(all) contract LavaToken {
     return <-create Vault(balance: 0)
   }
 
-  pub resource interface PublicLavaTokenMinter{
+  pub resource interface PublicLavaTokenMinter {
     pub fun convertTilePoints(tilePoints: @LavaFlow.TilePoint): @Vault
   }
 
@@ -53,7 +53,7 @@ access(all) contract LavaToken {
       return <- create Vault(balance: amount)
     }
 
-    pub fun convertTilePoints(tilePoints: @LavaFlow.TilePoint): @Vault{
+    pub fun convertTilePoints(tilePoints: @LavaFlow.TilePoint): @Vault {
       let vault <- self.mintTokens(amount: UInt64(tilePoints.amount))
       destroy tilePoints
       return <- vault
@@ -65,6 +65,5 @@ access(all) contract LavaToken {
     self.account.save(<-create LavaTokenMinter(), to: /storage/MainMinter)
     self.account.link<&{PublicLavaTokenMinter}>(/public/MainMinter, target: /storage/MainMinter)
   }
-
 }
  
