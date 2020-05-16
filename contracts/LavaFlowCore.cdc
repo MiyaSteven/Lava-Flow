@@ -987,7 +987,6 @@ pub contract LavaFlow {
       
       // 1. players roll for new positions
       LavaFlow.movementSystem.movePlayers(gameId: gameId)      
-<<<<<<< HEAD
 
       // 2 check if any players have reached the last tile
       self.lastTilePlayers(gameId: gameId)
@@ -998,18 +997,6 @@ pub contract LavaFlow {
       // 4. destroy the players trapped inside the lava
       LavaFlow.playerSystem.destroyPlayersInLava(gameId: gameId)
 
-=======
-
-      // 2 check if any players have reached the last tile
-      self.lastTilePlayers(gameId: gameId)
-      
-      // 3. run lava roll
-      LavaFlow.movementSystem.moveLava(gameId: gameId)
-
-      // 4. destroy the players trapped inside the lava
-      LavaFlow.playerSystem.destroyPlayersInLava(gameId: gameId)
-
->>>>>>> a46f50a3ed87ffffd9200865ed8f6b3b16ed9605
     }
 
     // lastTilePlayers
