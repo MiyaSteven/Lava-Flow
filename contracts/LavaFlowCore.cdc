@@ -23,7 +23,7 @@ pub contract LavaFlow {
   pub event StartedGame(gameId: UInt)
   pub event EndedGame(gameId: UInt)
   pub event NextGameTurn(gameId: UInt)
-  pub event PlayerLeftGame(gameId: UInt, playerId: UInt)
+  pub event PlayerWonGame(gameId: UInt, playerId: UInt)
 
   /*
    * PLAYER EVENTS
@@ -368,6 +368,7 @@ pub contract LavaFlow {
     }
 
     destroy() {
+      emit DestroyedTilePoint(id: self.id)
       let tilePointMinter <- LavaFlow.loadTilePointMinter()
       tilePointMinter.decreaseSupply()
       LavaFlow.saveTilePointMinter(minter: <- tilePointMinter)
@@ -1199,7 +1200,7 @@ pub contract LavaFlow {
 
         // return the player
         game.playerReceivers[playerId]!.deposit(token: <- player)
-        emit PlayerLeftGame(gameId: gameId, playerId: playerId)
+        emit PlayerWonGame(gameId: gameId, playerId: playerId)
 
         // clean the player's game state
         var j = 0
@@ -1623,7 +1624,7 @@ pub contract LavaFlow {
   init(){
     self.rng = RNG()
     self.gameboardSize = 50
-    self.lavaTurnStart = UInt(20)
+    self.lavaTurnStart = UInt(5)
     self.games <- {}
 
     self.playerMovementRNG = UInt(6)

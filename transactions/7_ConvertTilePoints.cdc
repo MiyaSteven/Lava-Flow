@@ -15,12 +15,16 @@ transaction {
       .getCapability(/public/LavaTokenVault)!
       .borrow<&{LavaToken.Receiver}>()!
     let player <- playerCollection.withdraw(id: UInt(2))
-    let tilePoints <- player.removeTilePoints(position: UInt(0))
-    log("TilePoints amount")
-    log(tilePoints.amount)
+    var i = player.tilePoints.length
+    while i > 0 {
+      let tilePoints <- player.removeTilePoints(position: UInt(0))
+      log("TilePoints amount")
+      log(tilePoints.amount)
+      let vault <- self.minterRef.convertTilePoints(tilePoints:<- tilePoints)
+      self.vaultReference.deposit(from: <- vault)
+      i = i - 1
+    }
     playerCollection.deposit(token: <-player )
-    let vault <- self.minterRef.convertTilePoints(tilePoints:<- tilePoints)
-    self.vaultReference.deposit(from: <- vault)
     log("Transfered tokens")
     // get the player
     // get the tile points
@@ -28,9 +32,7 @@ transaction {
     // get the vaultReceiver
     // mint tokens
     // transfer to vault
-
   }
-
   execute{
   }
 }
