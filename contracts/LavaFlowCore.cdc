@@ -30,6 +30,8 @@ pub contract LavaFlow {
    */
   pub event MintedPlayer(id id: UInt, name name: String, class class: String, intelligence intelligence: UInt, strength strength: UInt, cunning cunning: UInt)
   pub event DestroyedPlayer(id: UInt)
+  pub event PlayerMeltedInLava(id: UInt)
+  pub event PlayerHitByBomb(id: UInt)
   pub event NextPlayerTurn(gameId: UInt, playerId: UInt)
   pub event AddedPlayerToGame(gameId: UInt, playerId: UInt)
   pub event MovedPlayerToTile(gameId: UInt, playerId: UInt, tilePosition: UInt)
@@ -75,6 +77,7 @@ pub contract LavaFlow {
    * LAVA EVENTS
    */
   pub event MovedLava(gameId: UInt, lastPosition: UInt)
+  pub event ThrewVolcanoBomb(gameId: UInt, targetTile: UInt)
 
   /*
    * TRANSFER EVENTS
@@ -156,7 +159,7 @@ pub contract LavaFlow {
   // 
   pub fun startGame(gameId: UInt) {
     pre {
-      LavaFlow.games[gameId] != nil : "No game to join"
+      LavaFlow.games[gameId] != nil : "No game to start"
     }
     let game <- LavaFlow.games.remove(key: gameId)!
     if (game.isGameStarted) {
@@ -171,7 +174,7 @@ pub contract LavaFlow {
   // nextTurn cycles through another game turn
   pub fun nextTurn(gameId: UInt) {
     pre {
-      LavaFlow.games[gameId] != nil : "No game to join"
+      LavaFlow.games[gameId] != nil : "No game to play next turn"
     }
     let game <- LavaFlow.games.remove(key: gameId)!
     if (!game.isGameStarted) {
@@ -240,7 +243,7 @@ pub contract LavaFlow {
         var i = 0
         while i < self.equipments.length {
           let item <- self.equipments.remove(at: i)
-          if item.type != UInt(0) {
+          if item.type != UInt(0) || item.type != UInt(4) {
             return <-item
           }
           self.equipments.insert(at: i, <-item)
@@ -262,6 +265,27 @@ pub contract LavaFlow {
           let item <- self.equipments.remove(at: i)
           // item of type 0 is a LavaSurfboard
           if item.type == UInt(0) {
+            return <-item
+          }
+          self.equipments.insert(at: i, <-item)
+          i = i + 1
+        }
+        return nil
+      } else {
+        return nil
+      }
+    }
+
+    // getBombShield will check and return a BombShield if the Player has one.
+    // This should only be called on the Throw Bomb phase.
+    // 
+    access(all) fun getBombShield(): @Item? {
+      if self.equipments.length > 0 {
+        var i = 0
+        while i < self.equipments.length {
+          let item <- self.equipments.remove(at: i)
+          // item of type 4 is a BombShield
+          if item.type == UInt(4) {
             return <-item
           }
           self.equipments.insert(at: i, <-item)
@@ -717,7 +741,7 @@ pub contract LavaFlow {
     pub fun mintItem(): @Item {
       self.idCount = self.idCount + UInt(1)
       self.totalSupply = self.totalSupply + UInt(1)
-      let type = LavaFlow.rng.runRNG(4)
+      let type = LavaFlow.rng.runRNG(5)
 
       var durability = LavaFlow.rng.runRNG(3) + UInt(1)
       if type == UInt(1) {
@@ -1129,6 +1153,9 @@ pub contract LavaFlow {
       // 4. destroy the players trapped inside the lava
       LavaFlow.playerSystem.destroyPlayersInLava(gameId: gameId)
 
+      // 5. run throw volcano bomb & destroy players hit by a volcano bomb
+      LavaFlow.movementSystem.throwBombAndDestroy(gameId: gameId)
+
     }
 
     // lastTilePlayers sebds back the winning players
@@ -1219,7 +1246,7 @@ pub contract LavaFlow {
           let surfboard <- player.getLavaSurfboard()
           if surfboard == nil {
             log("Player doesn't have a surfboard")
-
+            emit PlayerMeltedInLava(id: playerId)
             // kill the player because they're dumb (and unlucky) and don't have a surfboard
             let game <- LavaFlow.games.remove(key: gameId)!
             destroy player
@@ -1471,6 +1498,57 @@ pub contract LavaFlow {
       
       LavaFlow.games[gameId] <-! game
     }
+
+    pub fun throwBombAndDestroy(gameId: UInt){
+      let game <- LavaFlow.games.remove(key: gameId)!
+
+      // the lava only starts moving after a specifed number of game turns
+      if game.turnCount > LavaFlow.lavaTurnStart {
+        let throwBomb = LavaFlow.rng.runRNG(2)
+        if (throwBomb == UInt(1)){
+          let volcanoBombTarget = LavaFlow.rng.runRNG(UInt(LavaFlow.gameboardSize))
+          let playerTilePositionKeys = game.playerTilePositions.keys
+          // 1. get the target tile
+          let targetTile <- game.gameboard.remove(at: volcanoBombTarget)
+          var i = 0
+          for playerId in playerTilePositionKeys {
+            let playerPosition = game.playerTilePositions[playerId]!
+            if playerPosition == volcanoBombTarget {
+              let player <- targetTile.getPlayer(id: playerId)
+              let bombShield <- player.getBombShield()
+              if bombShield == nil {
+                emit PlayerHitByBomb(id: playerId)
+                destroy player
+
+                // clean up player data from game world
+                var j = 0
+                while j < game.playerTurnOrder.length {
+                  if game.playerTurnOrder[j] == playerId {
+                    game.playerTurnOrder.remove(at: j)
+                  }
+                  j = j + 1
+                }
+                game.playerReceivers.remove(key: playerId)
+                game.totalPlayerCount = game.totalPlayerCount - UInt(1)
+                game.playerTilePositions.remove(key: playerId)
+              } else {            
+                emit PlayerUsedItem(gameId: gameId, playerId: playerId, itemId: bombShield?.id!)
+                bombShield?.decreaseDurability()
+                if bombShield?.durability == UInt(0) {
+                  destroy bombShield
+                } else {
+                  player.equipments.insert(at: 0, <- bombShield!)    
+                }
+                targetTile.playerContainer.append(<- player)
+              }
+            }
+          }
+          game.gameboard.insert(at: volcanoBombTarget, <- targetTile)
+        }
+      }
+
+      LavaFlow.games[gameId] <-! game
+    }
   }
 
   // QuestSystem handles all work around quest interactions
@@ -1525,8 +1603,8 @@ pub contract LavaFlow {
 
   init(){
     self.rng = RNG()
-    self.gameboardSize = 30
-    self.lavaTurnStart = UInt(2)
+    self.gameboardSize = 50
+    self.lavaTurnStart = UInt(20)
     self.games <- {}
 
     self.turnPhaseSystem = TurnPhaseSystem()
