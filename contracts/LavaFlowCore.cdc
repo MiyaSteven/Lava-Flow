@@ -1604,7 +1604,7 @@ pub contract LavaFlow {
   init(){
     self.rng = RNG()
     self.gameboardSize = 50
-    self.lavaTurnStart = UInt(20)
+    self.lavaTurnStart = UInt(4)
     self.games <- {}
 
     self.turnPhaseSystem = TurnPhaseSystem()
