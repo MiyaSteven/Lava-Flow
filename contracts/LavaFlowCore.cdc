@@ -77,7 +77,7 @@ pub contract LavaFlow {
    * LAVA EVENTS
    */
   pub event MovedLava(gameId: UInt, lastPosition: UInt)
-  pub event ThrewVolcanoBomb(gameId: UInt, targetTile: UInt)
+  pub event LavaBombThrown(gameId: UInt, targetTile: UInt)
 
   /*
    * TRANSFER EVENTS
@@ -110,6 +110,22 @@ pub contract LavaFlow {
   access(self) let itemSystem: ItemSystem
   access(self) let movementSystem: MovementSystem
   access(self) let gameSystem: GameSystem
+
+  // RNG constants
+  pub let playerMovementRNG: UInt
+  pub let playerStatsRNG: UInt
+  pub let numberOfRequirementsRNG: UInt
+  pub let requirementValueRNG: UInt
+  pub let operationTypeRNG: UInt
+  pub let itemTypeRNG: UInt
+  pub let itemDurabilityRNG: UInt
+  pub let tileEventRNG: UInt // dictates the chances that a tile may have or may not have an item, quest, and points
+  pub let tileEventTypeRNG: UInt
+  pub let numberOfItemsPerTileRNG: UInt // number of new items to generate on a tile
+  pub let newTilePointsRNG: UInt // number of new tile points to generate
+  pub let lavaBombRNG: UInt // chance that a bomb goes off on a tile
+  pub let lavaMovementRNG: UInt
+  pub let awardTypeRNG: UInt
 
   /************************************************************************
   * Contract level functions
@@ -376,20 +392,20 @@ pub contract LavaFlow {
 
       // roll for the quest's requirements
       var requirements: [QuestRequirement] = []
-      var numberOfRequirements = LavaFlow.rng.runRNG(3) + UInt(1)
+      var numberOfRequirements = LavaFlow.rng.runRNG(LavaFlow.numberOfRequirementsRNG) + UInt(1)
       var attributes = ["strength", "intelligence", "cunning"]
       var i = 0
       // quests have a variable number of requirements
       while UInt(i) < numberOfRequirements {
         // 1. roll for value
-        let requirementVal = LavaFlow.rng.runRNG(10) + UInt(1)
+        let requirementVal = LavaFlow.rng.runRNG(LavaFlow.requirementValueRNG) + UInt(1)
 
         // 2. roll for attribute
         let selectedAttribute = LavaFlow.rng.runRNG(UInt(attributes.length))
         var attribute = attributes.remove(at: selectedAttribute)
 
         // 3. roll for operation
-        let operationType = LavaFlow.rng.runRNG(5)
+        let operationType = LavaFlow.rng.runRNG(LavaFlow.operationTypeRNG)
 
         requirements.append(QuestRequirement(attribute: attribute, operation: operationType, value: requirementVal))
 
@@ -433,7 +449,7 @@ pub contract LavaFlow {
 
     pub fun awardPoints(gameId: UInt, playerId: UInt): @TilePoint {
       let tilePointMinter <- LavaFlow.loadTilePointMinter()
-      let points <- tilePointMinter.mintPoints(amount: LavaFlow.rng.runRNG(100))
+      let points <- tilePointMinter.mintPoints(amount: LavaFlow.rng.runRNG(LavaFlow.newTilePointsRNG))
 
       emit QuestRewardedPoints(gameId: gameId, playerId: playerId, amount: UInt(points.amount), questId: self.id)
 
@@ -705,9 +721,10 @@ pub contract LavaFlow {
     pub fun mintPlayers(name: String, class: String): @Player {
       self.idCount = self.idCount + UInt(1)
       self.totalSupply = self.totalSupply + UInt(1)
-      let randomStat1 = LavaFlow.rng.runRNG(10) + UInt(1)
-      let randomStat2 = LavaFlow.rng.runRNG(10) + UInt(1)
-      let randomStat3 = LavaFlow.rng.runRNG(10) + UInt(1)
+      
+      let randomStat1 = LavaFlow.rng.runRNG(LavaFlow.playerStatsRNG) + UInt(1)
+      let randomStat2 = LavaFlow.rng.runRNG(LavaFlow.playerStatsRNG) + UInt(1)
+      let randomStat3 = LavaFlow.rng.runRNG(LavaFlow.playerStatsRNG) + UInt(1)
       emit MintedPlayer(id: self.idCount, name: name, class: class, intelligence: randomStat1, strength: randomStat2, cunning: randomStat3)
       return <- create Player(id: self.idCount, name: name, class: class, intelligence: randomStat1, strength: randomStat2, cunning: randomStat3)
     }
@@ -741,9 +758,8 @@ pub contract LavaFlow {
     pub fun mintItem(): @Item {
       self.idCount = self.idCount + UInt(1)
       self.totalSupply = self.totalSupply + UInt(1)
-      let type = LavaFlow.rng.runRNG(5)
-
-      var durability = LavaFlow.rng.runRNG(3) + UInt(1)
+      let type = LavaFlow.rng.runRNG(LavaFlow.itemTypeRNG)
+      var durability = LavaFlow.rng.runRNG(LavaFlow.itemDurabilityRNG) + UInt(1)
       if type == UInt(1) {
         durability = UInt(1)
       }
@@ -846,12 +862,12 @@ pub contract LavaFlow {
       var newTile <- self.mintEmptyTile()
 
       // roll for to determine whether an item event occurs (items, quest, ft)
-      let shouldEventOccur = LavaFlow.rng.runRNG(100) > UInt(50)
+      let shouldEventOccur = LavaFlow.rng.runRNG(LavaFlow.tileEventRNG) > UInt(50)
 
       // if a tile is allowed to have an event, create a resource to place on the tile
       // determine if the tile should have a quest (40%) | points (40%)| items (20%)
       if shouldEventOccur {
-        let eventType = LavaFlow.rng.runRNG(100)
+        let eventType = LavaFlow.rng.runRNG(LavaFlow.tileEventTypeRNG)
         if (eventType > UInt(60)) {
           // lay a quest on the tile
           let questMinter <- LavaFlow.loadQuestMinter()
@@ -865,7 +881,7 @@ pub contract LavaFlow {
         } else if (eventType > UInt(20)) {
           // lay some points to the tile
           let tilePointMinter <- LavaFlow.loadTilePointMinter()
-          let tilePoints <- tilePointMinter.mintPoints(amount: LavaFlow.rng.runRNG(100))
+          let tilePoints <- tilePointMinter.mintPoints(amount: LavaFlow.rng.runRNG(LavaFlow.newTilePointsRNG))
 
           emit AddedTilePointToTile(tileId: newTile.id, tilePointId: tilePoints.id)
 
@@ -874,7 +890,7 @@ pub contract LavaFlow {
 
         } else { 
           // lay some items on the tiles
-          let numOfItems = LavaFlow.rng.runRNG(3) + UInt(1)
+          let numOfItems = LavaFlow.rng.runRNG(LavaFlow.numberOfItemsPerTileRNG) + UInt(1)
           var i = 0
           while UInt(i) < numOfItems {
             let itemMinter <- LavaFlow.loadItemMinter()
@@ -1306,7 +1322,7 @@ pub contract LavaFlow {
       // for each player, compute their new position and move them to the tile at position
       for playerId in playerTurnOrder {
         let game <- LavaFlow.games.remove(key: gameId)!
-        let movementForward = LavaFlow.rng.runRNG(6) + UInt(1)
+        let movementForward = LavaFlow.rng.runRNG(LavaFlow.playerMovementRNG) + UInt(1)
         var newTilePosition = game.playerTilePositions[playerId]! + UInt(movementForward)
 
         // ensure player ends on the last tile if they over-roll
@@ -1429,7 +1445,7 @@ pub contract LavaFlow {
           let awardChanceTarget = postItemEffectTilePosition
           let playerAwardChance = LavaFlow.rng.runRNG(UInt(LavaFlow.gameboardSize))
           if awardChanceTarget > playerAwardChance {
-            let awardType = LavaFlow.rng.runRNG(2)
+            let awardType = LavaFlow.rng.runRNG(LavaFlow.awardTypeRNG)
             if awardType == UInt(0) {
               // reward item
               player.addEquipment(item: <-quest.awardItem(gameId: gameId, playerId: playerId))
@@ -1466,7 +1482,7 @@ pub contract LavaFlow {
 
       // the lava only starts moving after a specifed number of game turns
       if game.turnCount > LavaFlow.lavaTurnStart {
-        var lavaMovement = LavaFlow.rng.runRNG(6) + UInt(1)
+        var lavaMovement = LavaFlow.rng.runRNG(LavaFlow.lavaMovementRNG) + UInt(1)
         var lastLavaPosition = game.lastLavaPosition
 
         // check that the lava does not exceed the board's length
@@ -1504,13 +1520,17 @@ pub contract LavaFlow {
 
       // the lava only starts moving after a specifed number of game turns
       if game.turnCount > LavaFlow.lavaTurnStart {
-        let throwBomb = LavaFlow.rng.runRNG(2)
-        if (throwBomb == UInt(1)){
+        // every time the lava moves, a lava bomb is thrown
+        let throwBomb = LavaFlow.rng.runRNG(LavaFlow.lavaBombRNG)
+        if (throwBomb == UInt(1)) {
           let volcanoBombTarget = LavaFlow.rng.runRNG(UInt(LavaFlow.gameboardSize))
+
+          emit LavaBombThrown(gameId: game.id, targetTile: volcanoBombTarget)
+          
           let playerTilePositionKeys = game.playerTilePositions.keys
           // 1. get the target tile
           let targetTile <- game.gameboard.remove(at: volcanoBombTarget)
-          var i = 0
+
           for playerId in playerTilePositionKeys {
             let playerPosition = game.playerTilePositions[playerId]!
             if playerPosition == volcanoBombTarget {
@@ -1546,7 +1566,6 @@ pub contract LavaFlow {
           game.gameboard.insert(at: volcanoBombTarget, <- targetTile)
         }
       }
-
       LavaFlow.games[gameId] <-! game
     }
   }
@@ -1606,6 +1625,21 @@ pub contract LavaFlow {
     self.gameboardSize = 50
     self.lavaTurnStart = UInt(20)
     self.games <- {}
+
+    self.playerMovementRNG = UInt(6)
+    self.playerStatsRNG = UInt(10)
+    self.numberOfRequirementsRNG = UInt(3)
+    self.requirementValueRNG = UInt(10)
+    self.operationTypeRNG = UInt(5)
+    self.itemTypeRNG = UInt(5)
+    self.itemDurabilityRNG = UInt(3)
+    self.numberOfItemsPerTileRNG = UInt(3)
+    self.tileEventRNG = UInt(100)
+    self.tileEventTypeRNG = UInt(100)
+    self.newTilePointsRNG = UInt(100)
+    self.lavaBombRNG = UInt(2)
+    self.lavaMovementRNG = UInt(6)
+    self.awardTypeRNG = UInt(2)
 
     self.turnPhaseSystem = TurnPhaseSystem()
     self.playerSystem = PlayerSystem()
