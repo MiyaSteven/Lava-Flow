@@ -1,13 +1,13 @@
 // LavaFlow Contract
 // Synopsis
-// The adventurers seeking riches are caught in an erupting treasure-filled volcano dungeon, Flodor. 
+// The adventurers seeking riches are caught in an erupting treasure-filled volcanic dungeon, Flodor. 
 // Their entrance have been destroyed. They must find a way out while finding as many items and points as possible because they're greedy sons of pigs.
 
 // Gameplay
-// LavaFlow accounts can transfer their players onto a LavaFlow Boardgame (NFT). players (NFTs) will traverse the game, moving from Tile (NFTs) to Tile. 
-// At every new Tile, a Player may pick up Items (NFTs), Lava Points (FTs), and/or complete Quests (NFTs). If the lava reaches the Player's tile, NFT death.
-// Items affect how fast a Player may move. Certain items such as the LavaSurfboard benefit the players, saving them if the lava reaches their Tile. 
-// Other items like LavaSmoke or VolcanicBomb slows or stops the Player from moving at the movement phase. If players reach the end, they will be returned to their owner's account.
+// LavaFlow accounts can transfer their players onto a LavaFlow Boardgame (NFT). Players (NFTs) will traverse the game, moving from tile (NFTs) to tile. 
+// At every new tile, a player may pick up items (NFTs), lava points (FTs), and/or complete quests (NFTs). If the lava reaches the players's tile, they get melted and the player NFT is destroyed.
+// Items affect how quickly a player may move. Certain items such as the LavaSurfboard benefit players, saving them if the lava reaches their tile. 
+// Other items like LavaSmoke or LavaTrap slows or stops the player from moving at the movement phase. If players reach the end, they will be returned to their owner's account.
 
 // Code architecture
 // The original idea was to implement game development's ECS pattern. However, this was eschewed in favor of storing game state directly on the resources themselves.
@@ -31,7 +31,7 @@ pub contract LavaFlow {
   pub event MintedPlayer(id id: UInt, name name: String, class class: String, intelligence intelligence: UInt, strength strength: UInt, cunning cunning: UInt)
   pub event DestroyedPlayer(id: UInt)
   pub event PlayerMeltedInLava(id: UInt)
-  pub event PlayerHitByBomb(id: UInt)
+  pub event PlayerHitByLavaBomb(id: UInt)
   pub event NextPlayerTurn(gameId: UInt, playerId: UInt)
   pub event AddedPlayerToGame(gameId: UInt, playerId: UInt)
   pub event MovedPlayerToTile(gameId: UInt, playerId: UInt, tilePosition: UInt)
@@ -328,10 +328,11 @@ pub contract LavaFlow {
     pub let id: UInt
 
     // Item types
-    // 1. LavaSurfboard - save a Player if the lava ever reaches them. Move Player +1 ahead of Lava. Durability = 1...3
-    // 2. VolcanicBomb - hurts the Player on pickup. Disable movement. Durability = 1. Movement = 0.
-    // 3. Jetpack - boosts the Player by a large number of tiles. Durability = 1...3. Move Player +3 ahead. 
-    // 4. LavaSmoke - decreases the Player movement. Durability = 1...3. Movement -1.
+    // 0. LavaSurfboard - save a Player if the lava ever reaches them. Move Player +1 ahead of Lava. Durability = 1...3
+    // 1. LavaTrap - hurts the Player on pickup. Disable movement. Durability = 1. Movement = 0.
+    // 2. Jetpack - boosts the Player by a large number of tiles. Durability = 1...3. Move Player +3 ahead. 
+    // 3. LavaSmoke - decreases the Player movement. Durability = 1...3. Movement -1.
+    // 4. BombShield - protect the player if they are hit by a LavaBomb
     pub let type: UInt
 
     pub var durability: UInt // item usage cap
@@ -1363,7 +1364,7 @@ pub contract LavaFlow {
       let activeItem <- player.getActiveItem()
       if activeItem != nil {
 
-        // 1. VolcanicBomb - hurts the Player on pickup. Disable movement. Durability = 1. Movement = 0.
+        // 1. LavaTrap - hurts the Player on pickup. Disable movement. Durability = 1. Movement = 0.
         if activeItem?.type == UInt(1) {
           postItemEffectTilePosition = currentTilePosition
 
@@ -1371,7 +1372,7 @@ pub contract LavaFlow {
         } else if activeItem?.type == UInt(2) {
           postItemEffectTilePosition = postItemEffectTilePosition + UInt(2)
 
-        // 3. Slime - decreases the Player movement. Durability = 1...3. Movement -1.
+        // 3. LavaSmoke - decreases the Player movement. Durability = 1...3. Movement -1.
         } else if activeItem?.type == UInt(3) {
           postItemEffectTilePosition = postItemEffectTilePosition - UInt(1)
         }
@@ -1537,7 +1538,7 @@ pub contract LavaFlow {
               let player <- targetTile.getPlayer(id: playerId)
               let bombShield <- player.getBombShield()
               if bombShield == nil {
-                emit PlayerHitByBomb(id: playerId)
+                emit PlayerHitByLavaBomb(id: playerId)
                 destroy player
 
                 // clean up player data from game world
