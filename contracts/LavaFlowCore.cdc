@@ -1,7 +1,7 @@
 // LavaFlow Contract
 // Synopsis
 // The adventurers seeking riches are caught in an erupting treasure-filled volcano dungeon, Flodor. 
-// Their entrance have been destroyed. They must find a way out while finding as many treasures as possible because they're greedy sons of pigs.
+// Their entrance have been destroyed. They must find a way out while finding as many items and points as possible because they're greedy sons of pigs.
 
 // Gameplay
 // LavaFlow accounts can transfer their players onto a LavaFlow Boardgame (NFT). players (NFTs) will traverse the game, moving from Tile (NFTs) to Tile. 
