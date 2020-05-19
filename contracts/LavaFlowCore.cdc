@@ -1,30 +1,46 @@
-// LavaFlow Contract
+/************************************************************************
+
+ (                                     (      (         )             
+ )\ )     (                  (         )\ )   )\ )   ( /(    (  (     
+(()/(     )\      (   (      )\       (()/(  (()/(   )\())   )\))(   '
+ /(_)) ((((_)(    )\  )\  ((((_)(      /(_))  /(_)) ((_)\   ((_)()\ ) 
+(_))    )\ _ )\  ((_)((_)  )\ _ )\    (_))_| (_))     ((_)  _(())\_)()
+| |     (_)_\(_) \ \ / /   (_)_\(_)   | |_   | |     / _ \  \ \((_)/ /
+| |__    / _ \    \ V /     / _ \     | __|  | |__  | (_) |  \ \/\/ / 
+|____|  /_/ \_\    \_/     /_/ \_\    |_|    |____|  \___/    \_/\_/  
+                                                                      
+                                           
+*************************************************************************/
+
 // Synopsis
-// The adventurers seeking riches are caught in an erupting treasure-filled volcanic dungeon, Flodor. 
-// Their entrance have been destroyed. They must find a way out while finding as many items and points as possible because they're greedy sons of pigs.
+//
+// The adventurers seeking riches are caught in an erupting treasure-filled volcanic dungeon, LavaFlow. 
+// LavaFlow is a board game where players have to escape the lava creeping and lava bombs creeping their way while acquiring as many items and points on their escape. 
+// If the lava or bomb lands on a player's tile, instant NFT death if they don't have life-saving items.
 
 // Gameplay
-// Players can set up accounts to hold their NFT's and FT's outside the game
-// The account with the deployed LavaFlowCore.cdc contract can mint and transfer Players their own Player NFT
-// Any user can create a game and sets a required number of players to start playing
-// When a gameboard is created, it mints 100 tiles, 98 can contain Items, Quests or Tile Points and 2 are Empty (starting and ending tiles)
-// The gameboard is finished once it owns 100 tiles total with the required start condition of number of players
-// Players can send their NFT's to a game once the game is created
-// Once the required number of Players have been sent to a game, any user can start the game and run the first turn of player movement
-// Any user can run our game one turn at a time
-// After 3 turns of player movement have passed, the environmental obstacles (Lava and Lava Bombs) activate
-// The Lava moves with the same RNG dice as the players and destroys all tiles along with it's contents as it covers them
-// The Lava Bombs hit random tiles determined by the size of the gameboard and only destroys an unprotected player on hit
-// As players land on tiles, they are tested through requirements
-// If they meet the requirements, they have a random chance to earn Item(s) or Tile Points 
-// The Items effect movement, protection from the environmental obstacles or if unused at the end of the game, they will be sent to the owners storage
-// The Tile Points earned at the end of the game will be sent to the owners storage and can be converted into Lava Tokens (FT's) 
-// When a Player reaches the last tile, they are immediately sent back to the owners storage along with their unused assets accumulated or brought to that game
-// If a Player is destroyed from any environmental obstacle, all their assets they earned or brought will be destroyed
+//
+// 1. Owners can set up their accounts with LavaFlow collections.
+// 2. The account with the LavaFlowCore contract can mint and transfer new players to other accounts.
+// 3. Any account can create a game (gameboard) with a set number of players.
+// 4. When a gameboard is created, it mints 100 tiles, 98 can contain Items, Quests or Tile Points. The first and last two tiles are empty.
+// 5. Accounts can send their NFTs to a game.
+// 6. Once the required number of players have been met, any account can start the game.
+// 7. Any account can run the game one turn at a time. A game turn equates to all the players going through the movement phase, item + quest phase, and environmental movement phase (lava and lava bombs).
+// 8. After the initial 3 game turns, the environmental obstacles (Lava and Lava Bombs) activate.
+// 9. The lava moves at the same rate players can. If it reaches them, it destroys the players and the rest of the tile's contents.
+// 10. Lava bombs may hit random tiles and destroy unprotected players with a bomb shield.
+// 11. Players may trigger quests on new tiles. If they meet the stat requirements, they may gain an item or lava points (Lava points can be converted for our LavaTokens FTs).
+// 12. Items may affect a player's movement, confer protection from the environmental obstacles, or if unused by the end will remain with the players post-game.
+// 13. When a player reaches the last tile, they are returned to the owner's storage along with their unused and accumulated assets.
+// 14. The points earned can be converted into Lava Tokens.
+// 15. If a player is destroyed in the course of a game, all their assets they earned or brought will be destroyed.
 
 // Code architecture
-// The original idea was to implement game development's ECS pattern. However, this was eschewed in favor of storing game state directly on the resources themselves.
-// Wrong move. Though it was relatively straight forward in the beginning, having to continually access and put back resources to act upon them became very unwieldy.
+//
+// The original idea was to implement game development's ECS pattern. However, this was eschewed in favor of storing game state directly on the resources themselves, object-oriented style.
+// Wrong move here. Though it was relatively straight forward in the beginning, having to continually access and put back resources to act upon them became very unwieldy. Because we could not
+// pass in an item by reference to mutate, nor reliably move the resource in and back out into the same variable, our Systems had to pull the resources from the game every time. This involved 
 // OOP does not work here. For future development, it's best to capture the game world state separately, like the ECS pattern, and then modify the resources' attributes.
 
 pub contract LavaFlow {
