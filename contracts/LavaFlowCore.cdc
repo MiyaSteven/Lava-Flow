@@ -4,10 +4,23 @@
 // Their entrance have been destroyed. They must find a way out while finding as many items and points as possible because they're greedy sons of pigs.
 
 // Gameplay
-// LavaFlow accounts can transfer their players onto a LavaFlow Boardgame (NFT). Players (NFTs) will traverse the game, moving from tile (NFTs) to tile. 
-// At every new tile, a player may pick up items (NFTs), lava points (FTs), and/or complete quests (NFTs). If the lava reaches the players's tile, they get melted and the player NFT is destroyed.
-// Items affect how quickly a player may move. Certain items such as the LavaSurfboard benefit players, saving them if the lava reaches their tile. 
-// Other items like LavaSmoke or LavaTrap slows or stops the player from moving at the movement phase. If players reach the end, they will be returned to their owner's account.
+// Players can set up accounts to hold their NFT's and FT's outside the game
+// The account with the deployed LavaFlowCore.cdc contract can mint and transfer Players their own Player NFT
+// Any user can create a game and sets a required number of players to start playing
+// When a gameboard is created, it mints 100 tiles, 98 can contain Items, Quests or Tile Points and 2 are Empty (starting and ending tiles)
+// The gameboard is finished once it owns 100 tiles total with the required start condition of number of players
+// Players can send their NFT's to a game once the game is created
+// Once the required number of Players have been sent to a game, any user can start the game and run the first turn of player movement
+// Any user can run our game one turn at a time
+// After 3 turns of player movement have passed, the environmental obstacles (Lava and Lava Bombs) activate
+// The Lava moves with the same RNG dice as the players and destroys all tiles along with it's contents as it covers them
+// The Lava Bombs hit random tiles determined by the size of the gameboard and only destroys an unprotected player on hit
+// As players land on tiles, they are tested through requirements
+// If they meet the requirements, they have a random chance to earn Item(s) or Tile Points 
+// The Items effect movement, protection from the environmental obstacles or if unused at the end of the game, they will be sent to the owners storage
+// The Tile Points earned at the end of the game will be sent to the owners storage and can be converted into Lava Tokens (FT's) 
+// When a Player reaches the last tile, they are immediately sent back to the owners storage along with their unused assets accumulated or brought to that game
+// If a Player is destroyed from any environmental obstacle, all their assets they earned or brought will be destroyed
 
 // Code architecture
 // The original idea was to implement game development's ECS pattern. However, this was eschewed in favor of storing game state directly on the resources themselves.
@@ -23,7 +36,7 @@ pub contract LavaFlow {
   pub event StartedGame(gameId: UInt)
   pub event EndedGame(gameId: UInt)
   pub event NextGameTurn(gameId: UInt)
-  pub event PlayerLeftGame(gameId: UInt, playerId: UInt)
+  pub event PlayerWonGame(gameId: UInt, playerId: UInt)
 
   /*
    * PLAYER EVENTS
@@ -94,7 +107,7 @@ pub contract LavaFlow {
   // rng is the contract's random number generator
   access(self) let rng: RNG
 
-  // gameboard size
+  // current gameboardSize 
   access(self) let gameboardSize: Int
 
   // Turn at which the lava will start flowing
@@ -357,7 +370,7 @@ pub contract LavaFlow {
     }
   }
 
-  // TilePoint can be traded in for Lava Tokens at the end of a game.
+  // TilePoint can be traded in for Lava Tokens at the end of a game and the player survives with TilePoints.
   // They are acquired throughout the game, picked up on Tiles or received from Quests.
   pub resource TilePoint {
     pub let id: UInt
@@ -369,6 +382,7 @@ pub contract LavaFlow {
     }
 
     destroy() {
+      emit DestroyedTilePoint(id: self.id)
       let tilePointMinter <- LavaFlow.loadTilePointMinter()
       tilePointMinter.decreaseSupply()
       LavaFlow.saveTilePointMinter(minter: <- tilePointMinter)
@@ -1200,7 +1214,7 @@ pub contract LavaFlow {
 
         // return the player
         game.playerReceivers[playerId]!.deposit(token: <- player)
-        emit PlayerLeftGame(gameId: gameId, playerId: playerId)
+        emit PlayerWonGame(gameId: gameId, playerId: playerId)
 
         // clean the player's game state
         var j = 0
@@ -1624,7 +1638,7 @@ pub contract LavaFlow {
   init(){
     self.rng = RNG()
     self.gameboardSize = 50
-    self.lavaTurnStart = UInt(20)
+    self.lavaTurnStart = UInt(5)
     self.games <- {}
 
     self.playerMovementRNG = UInt(6)
