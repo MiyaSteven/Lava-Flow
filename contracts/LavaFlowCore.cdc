@@ -1170,7 +1170,7 @@ pub contract LavaFlow {
       // 4. destroy the players trapped inside the lava
       LavaFlow.playerSystem.destroyPlayersInLava(gameId: gameId)
 
-      // 5. run throw volcano bomb & destroy players hit by a volcano bomb
+      // 5. run throw lava bomb & destroy players hit by a lava bomb
       LavaFlow.movementSystem.throwBombAndDestroy(gameId: gameId)
 
     }
@@ -1524,17 +1524,17 @@ pub contract LavaFlow {
         // every time the lava moves, a lava bomb is thrown
         let throwBomb = LavaFlow.rng.runRNG(LavaFlow.lavaBombRNG)
         if (throwBomb == UInt(1)) {
-          let volcanoBombTarget = LavaFlow.rng.runRNG(UInt(LavaFlow.gameboardSize))
+          let lavaBombTarget = LavaFlow.rng.runRNG(UInt(LavaFlow.gameboardSize))
 
-          emit LavaBombThrown(gameId: game.id, targetTile: volcanoBombTarget)
+          emit LavaBombThrown(gameId: game.id, targetTile: lavaBombTarget)
           
           let playerTilePositionKeys = game.playerTilePositions.keys
           // 1. get the target tile
-          let targetTile <- game.gameboard.remove(at: volcanoBombTarget)
+          let targetTile <- game.gameboard.remove(at: lavaBombTarget)
 
           for playerId in playerTilePositionKeys {
             let playerPosition = game.playerTilePositions[playerId]!
-            if playerPosition == volcanoBombTarget {
+            if playerPosition == lavaBombTarget {
               let player <- targetTile.getPlayer(id: playerId)
               let bombShield <- player.getBombShield()
               if bombShield == nil {
@@ -1564,7 +1564,7 @@ pub contract LavaFlow {
               }
             }
           }
-          game.gameboard.insert(at: volcanoBombTarget, <- targetTile)
+          game.gameboard.insert(at: lavaBombTarget, <- targetTile)
         }
       }
       LavaFlow.games[gameId] <-! game
