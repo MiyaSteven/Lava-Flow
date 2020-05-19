@@ -5,8 +5,10 @@
 
 // Gameplay
 // Players can set up accounts to hold their NFT's and FT's outside the game
+// The account with the deployed LavaFlowCore.cdc contract can mint and transfer Players their own Player NFT
 // Any user can create a game and sets a required number of players to start playing
-// The gameboard is created once it owns 100 tiles total, 98 can contain Items, Quests or Tile Points and 2 are Empty (starting and ending tiles)
+// When a gameboard is created, it mints 100 tiles, 98 can contain Items, Quests or Tile Points and 2 are Empty (starting and ending tiles)
+// The gameboard is finished once it owns 100 tiles total with the required start condition of number of players
 // Players can send their NFT's to a game once the game is created
 // Once the required number of Players have been sent to a game, any user can start the game and run the first turn of player movement
 // Any user can run our game one turn at a time
