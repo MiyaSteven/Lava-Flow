@@ -4,10 +4,21 @@
 // Their entrance have been destroyed. They must find a way out while finding as many items and points as possible because they're greedy sons of pigs.
 
 // Gameplay
-// LavaFlow accounts can transfer their players onto a LavaFlow Boardgame (NFT). players (NFTs) will traverse the game, moving from Tile (NFTs) to Tile. 
-// At every new Tile, a Player may pick up Items (NFTs), Lava Points (FTs), and/or complete Quests (NFTs). If the lava reaches the Player's tile, NFT death.
-// Items affect how fast a Player may move. Certain items such as the LavaSurfboard benefit the players, saving them if the lava reaches their Tile. 
-// Other items like LavaSmoke or VolcanicBomb slows or stops the Player from moving at the movement phase. If players reach the end, they will be returned to their owner's account.
+// Players can set up accounts to hold their NFT's and FT's outside the game
+// Any user can create a game and sets a required number of players to start playing
+// The gameboard is created once it owns 100 tiles total, 98 can contain Items, Quests or Tile Points and 2 are Empty (starting and ending tiles)
+// Players can send their NFT's to a game once the game is created
+// Once the required number of Players have been sent to a game, any user can start the game and run the first turn of player movement
+// Any user can run our game one turn at a time
+// After 3 turns of player movement have passed, the environmental obstacles (Lava and Lava Bombs) activate
+// The Lava moves with the same RNG dice as the players and destroys all tiles along with it's contents as it covers them
+// The Lava Bombs hit random tiles determined by the size of the gameboard and only destroys an unprotected player on hit
+// As players land on tiles, they are tested through requirements
+// If they meet the requirements, they have a random chance to earn Item(s) or Tile Points 
+// The Items effect movement, protection from the environmental obstacles or if unused at the end of the game, they will be sent to the owners storage
+// The Tile Points earned at the end of the game will be sent to the owners storage and can be converted into Lava Tokens (FT's) 
+// When a Player reaches the last tile, they are immediately sent back to the owners storage along with their unused assets accumulated or brought to that game
+// If a Player is destroyed from any environmental obstacle, all their assets they earned or brought will be destroyed
 
 // Code architecture
 // The original idea was to implement game development's ECS pattern. However, this was eschewed in favor of storing game state directly on the resources themselves.
@@ -94,7 +105,7 @@ pub contract LavaFlow {
   // rng is the contract's random number generator
   access(self) let rng: RNG
 
-  // gameboard size
+  // current gameboardSize 
   access(self) let gameboardSize: Int
 
   // Turn at which the lava will start flowing
@@ -356,7 +367,7 @@ pub contract LavaFlow {
     }
   }
 
-  // TilePoint can be traded in for Lava Tokens at the end of a game.
+  // TilePoint can be traded in for Lava Tokens at the end of a game and the player survives with TilePoints.
   // They are acquired throughout the game, picked up on Tiles or received from Quests.
   pub resource TilePoint {
     pub let id: UInt
