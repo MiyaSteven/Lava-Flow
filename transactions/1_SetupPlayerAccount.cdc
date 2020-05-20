@@ -5,7 +5,7 @@ import LavaToken from 0x02
 // We need at least to setup two players account
 // 
 // Game instructions:
-// Sign this contract with accounts 0x02 & 0x03
+// Individually sign this contract with accounts 0x02 & 0x03 
 
 transaction {
   prepare(acct: AuthAccount) {
