@@ -9,7 +9,7 @@ transaction {
   prepare(acct: AuthAccount) {}
 
   execute {
-    LavaFlow.startGame(gameId: UInt(1)) // <-- Start a game by its id here
+    LavaFlow.startGame(gameId: UInt(2)) // <-- Start a game by its id here
     log("Played Game")
   }
 }

@@ -9,7 +9,7 @@ transaction {
   prepare(acct: AuthAccount) {}
 
   execute {
-    LavaFlow.nextTurn(gameId: UInt(1)) // <--- Run the next turn
+    LavaFlow.nextTurn(gameId: UInt(2)) // <--- Run the next turn
     log("Played next turn Game")
   }
 }

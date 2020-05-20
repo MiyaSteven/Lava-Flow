@@ -25,7 +25,7 @@ transaction {
   }
 
   execute {
-    LavaFlow.joinGame(gameId: UInt(1), player: <- self.player, playerCollectionRef: self.playerCollectionRef) // <-- If you've created one game so far, that first game's id is 1
+    LavaFlow.joinGame(gameId: UInt(2), player: <- self.player, playerCollectionRef: self.playerCollectionRef) // <-- If you've created one game so far, that first game's id is 1
     log("Player added to Game")
   }
 }

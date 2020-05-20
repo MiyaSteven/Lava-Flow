@@ -349,6 +349,7 @@ pub contract LavaFlow {
       let playerMinter <- LavaFlow.loadPlayerMinter()
       playerMinter.decreaseSupply()
       LavaFlow.savePlayerMinter(minter: <- playerMinter)
+      log("execute player destruction")
     }
   }
 
@@ -399,9 +400,11 @@ pub contract LavaFlow {
 
     destroy() {
       emit DestroyedTilePoint(id: self.id)
+      log("destroy tilepoint loggggerr")
       let tilePointMinter <- LavaFlow.loadTilePointMinter()
       tilePointMinter.decreaseSupply()
       LavaFlow.saveTilePointMinter(minter: <- tilePointMinter)
+      log("post destroy tilepoint - puts tilepointerminter back")
     }
   }
 
@@ -1294,9 +1297,25 @@ pub contract LavaFlow {
           if surfboard == nil {
             log("Player doesn't have a surfboard")
             emit PlayerMeltedInLava(id: playerId)
+
+
             // kill the player because they're dumb (and unlucky) and don't have a surfboard
             let game <- LavaFlow.games.remove(key: gameId)!
+            log("got game before player destruction")
+             log("game total player count")
+            log(game.totalPlayerCount)
+
+            log("game playerTurnOrder")
+            log(game.playerTurnOrder)
+
+            log("game playerTilePositions")
+            log(game.playerTilePositions)
+            
             destroy player
+
+            log("player destroyed")
+            log(playerId)
+
             game.gameboard.insert(at: playerPosition, <- tile)
 
             // clean up player data from game world
@@ -1310,8 +1329,17 @@ pub contract LavaFlow {
             game.playerReceivers.remove(key: playerId)
             game.totalPlayerCount = game.totalPlayerCount - UInt(1)
             game.playerTilePositions.remove(key: playerId)
+            log("game total player count")
+            log(game.totalPlayerCount)
+
+            log("game playerTurnOrder")
+            log(game.playerTurnOrder)
+
+            log("game playerTilePositions")
+            log(game.playerTilePositions)
+
             LavaFlow.games[gameId] <-! game
-            
+
           } else {
             log("Player has a surfboard")
 
@@ -1328,6 +1356,16 @@ pub contract LavaFlow {
 
             tile.playerContainer.append(<- player)
             game.gameboard.insert(at: playerPosition, <- tile)
+
+            log("game total player count")
+            log(game.totalPlayerCount)
+
+            log("game playerTurnOrder")
+            log(game.playerTurnOrder)
+
+            log("game playerTilePositions")
+            log(game.playerTilePositions)
+            
             LavaFlow.games[gameId] <-! game
 
             // the surfboard saves the player by moving them on step ahead of the lava
@@ -1654,7 +1692,7 @@ pub contract LavaFlow {
   init(){
     self.rng = RNG()
     self.gameboardSize = 50
-    self.lavaTurnStart = UInt(5)
+    self.lavaTurnStart = UInt(1)
     self.games <- {}
 
     self.playerMovementRNG = UInt(6)

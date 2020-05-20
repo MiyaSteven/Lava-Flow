@@ -8,7 +8,7 @@ import LavaFlow from 0x01
 
 transaction {
   prepare(acct: AuthAccount) {
-    let receiverWallet = getAccount(0x02) // <----- Update this value to 0x02 and 0x03 
+    let receiverWallet = getAccount(0x03) // <----- Update this value to 0x02 and 0x03 
     let playeCollectionRef = receiverWallet
       .getCapability(/public/PlayersCollection)!
       .borrow<&{LavaFlow.PlayerReceiver}>()!
@@ -18,7 +18,7 @@ transaction {
       panic("no player minter")
     }
 
-    let player <- playerMinter.mintPlayers(name: "Player 1", class: "Warrior")
+    let player <- playerMinter.mintPlayers(name: "Player 2", class: "Warrior")
     playeCollectionRef.deposit(token: <- player)
     acct.save<@LavaFlow.PlayerMinter>(<- playerMinter, to: /storage/PlayerMinter )
     log("Player minted and transfered")
