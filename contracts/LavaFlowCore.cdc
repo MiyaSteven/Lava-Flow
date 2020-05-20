@@ -23,7 +23,7 @@
 // 1. Owners can set up their accounts with LavaFlow collections.
 // 2. The account with the LavaFlowCore contract can mint and transfer new players to other accounts.
 // 3. Any account can create a game (gameboard) with a set number of players.
-// 4. When a gameboard is created, it mints 100 tiles, 98 can contain Items, Quests or Tile Points. The first and last two tiles are empty.
+// 4. When a gameboard is created, it mints 100 tiles. 98 can contain Items, Quests or Tile Points. The first and last two tiles are empty.
 // 5. Accounts can send their NFTs to a game.
 // 6. Once the required number of players have been met, any account can start the game.
 // 7. Any account can run the game one turn at a time. A game turn equates to all the players going through the movement phase, item + quest phase, and environmental movement phase (lava and lava bombs).
@@ -76,13 +76,13 @@ pub contract LavaFlow {
    * ITEM EVENTS
    */
   pub event MintedItem(id: UInt, type: UInt, durability: UInt)
-  pub event DestroyedItem(id: UInt)
+  pub event DestroyedItem()
 
   /*
    * TILE POINT EVENTS
    */
   pub event MintedTilePoint(id: UInt, amount: UInt)
-  pub event DestroyedTilePoint(id: UInt)
+  pub event DestroyedTilePoint()
 
   /*
    * TILE EVENTS
@@ -379,7 +379,7 @@ pub contract LavaFlow {
     }
 
     destroy(){
-      emit DestroyedItem(id: self.id)
+      emit DestroyedItem()
       let itemMinter <- LavaFlow.loadItemMinter()
       itemMinter.decreaseSupply()
       LavaFlow.saveItemMinter(minter: <- itemMinter)
@@ -398,7 +398,7 @@ pub contract LavaFlow {
     }
 
     destroy() {
-      emit DestroyedTilePoint(id: self.id)
+      emit DestroyedTilePoint()
       let tilePointMinter <- LavaFlow.loadTilePointMinter()
       tilePointMinter.decreaseSupply()
       LavaFlow.saveTilePointMinter(minter: <- tilePointMinter)
@@ -1654,7 +1654,7 @@ pub contract LavaFlow {
   init(){
     self.rng = RNG()
     self.gameboardSize = 50
-    self.lavaTurnStart = UInt(5)
+    self.lavaTurnStart = UInt(3)
     self.games <- {}
 
     self.playerMovementRNG = UInt(6)

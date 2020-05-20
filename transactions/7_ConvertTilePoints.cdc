@@ -13,7 +13,7 @@ transaction {
   let vaultReference: &{LavaToken.Receiver}
 
   prepare(acct: AuthAccount) {
-    let lavaTokenAccount = getAccount(0x02) // <--- Account to be withdrawn from
+    let lavaTokenAccount = getAccount(0x03) // <--- Account to be withdrawn from
 
     self.minterRef = lavaTokenAccount.getCapability(/public/MainMinter)!
       .borrow<&{LavaToken.PublicLavaTokenMinter}>()!
