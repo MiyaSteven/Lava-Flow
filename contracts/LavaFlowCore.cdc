@@ -1,18 +1,47 @@
-// LavaFlow Contract
+/************************************************************************
+
+ (                                     (      (         )             
+ )\ )     (                  (         )\ )   )\ )   ( /(    (  (     
+(()/(     )\      (   (      )\       (()/(  (()/(   )\())   )\))(   '
+ /(_)) ((((_)(    )\  )\  ((((_)(      /(_))  /(_)) ((_)\   ((_)()\ ) 
+(_))    )\ _ )\  ((_)((_)  )\ _ )\    (_))_| (_))     ((_)  _(())\_)()
+| |     (_)_\(_) \ \ / /   (_)_\(_)   | |_   | |     / _ \  \ \((_)/ /
+| |__    / _ \    \ V /     / _ \     | __|  | |__  | (_) |  \ \/\/ / 
+|____|  /_/ \_\    \_/     /_/ \_\    |_|    |____|  \___/    \_/\_/  
+                                                                      
+                                           
+*************************************************************************/
+
 // Synopsis
-// The adventurers seeking riches are caught in an erupting treasure-filled volcano dungeon, Flodor. 
-// Their entrance have been destroyed. They must find a way out while finding as many items and points as possible because they're greedy sons of pigs.
+//
+// The adventurers seeking riches are caught in an erupting treasure-filled volcanic dungeon, LavaFlow. 
+// LavaFlow is an on-chain board game where players have to escape the lava creeping and lava bombs creeping their way while acquiring as many items and points on their escape. 
+// If the lava or bomb lands on a player's tile, instant NFT death if they don't have life-saving items.
 
 // Gameplay
-// LavaFlow accounts can transfer their players onto a LavaFlow Boardgame (NFT). players (NFTs) will traverse the game, moving from Tile (NFTs) to Tile. 
-// At every new Tile, a Player may pick up Items (NFTs), Lava Points (FTs), and/or complete Quests (NFTs). If the lava reaches the Player's tile, NFT death.
-// Items affect how fast a Player may move. Certain items such as the LavaSurfboard benefit the players, saving them if the lava reaches their Tile. 
-// Other items like LavaSmoke or VolcanicBomb slows or stops the Player from moving at the movement phase. If players reach the end, they will be returned to their owner's account.
+//
+// 1. Owners can set up their accounts with LavaFlow collections.
+// 2. The account with the LavaFlowCore contract can mint and transfer new players to other accounts.
+// 3. Any account can create a game (gameboard) with a set number of players.
+// 4. When a gameboard is created, it mints 100 tiles, 98 can contain Items, Quests or Tile Points. The first and last two tiles are empty.
+// 5. Accounts can send their NFTs to a game.
+// 6. Once the required number of players have been met, any account can start the game.
+// 7. Any account can run the game one turn at a time. A game turn equates to all the players going through the movement phase, item + quest phase, and environmental movement phase (lava and lava bombs).
+// 8. After the initial 3 game turns, the environmental obstacles (Lava and Lava Bombs) activate.
+// 9. The lava moves at the same rate players can. If it reaches them, it destroys the players and the rest of the tile's contents.
+// 10. Lava bombs may hit random tiles and destroy unprotected players with a bomb shield.
+// 11. Players may trigger quests on new tiles. If they meet the stat requirements, they may gain an item or lava points (Lava points can be converted for our LavaTokens FTs).
+// 12. Items may affect a player's movement, confer protection from the environmental obstacles, or if unused by the end will remain with the players post-game.
+// 13. When a player reaches the last tile, they are returned to the owner's storage along with their unused and accumulated assets.
+// 14. The points earned can be converted into Lava Tokens.
+// 15. If a player is destroyed in the course of a game, all their assets they earned or brought will be destroyed.
 
 // Code architecture
-// The original idea was to implement game development's ECS pattern. However, this was eschewed in favor of storing game state directly on the resources themselves.
-// Wrong move. Though it was relatively straight forward in the beginning, having to continually access and put back resources to act upon them became very unwieldy.
-// OOP does not work here. For future development, it's best to capture the game world state separately, like the ECS pattern, and then modify the resources' attributes.
+//
+// The original idea was to implement game development's ECS pattern. However, this was eschewed in favor of storing game state directly on the resources themselves, object-oriented style.
+// Wrong move here. Though it was relatively straight forward in the beginning, having to continually access and put back resources to act upon them became very unwieldy. Because we could not
+// pass in an item by reference to mutate, nor reliably move the resource in and back out into the same variable, our Systems had to pull the resources from the game every time. This involved 
+// a constant need to pull and return resources. OOP does not work here. For future development, it's best to capture the game world state separately, and then modify the resources' attributes at a separate stage.
 
 pub contract LavaFlow {
   /*
@@ -23,7 +52,7 @@ pub contract LavaFlow {
   pub event StartedGame(gameId: UInt)
   pub event EndedGame(gameId: UInt)
   pub event NextGameTurn(gameId: UInt)
-  pub event PlayerLeftGame(gameId: UInt, playerId: UInt)
+  pub event PlayerWonGame(gameId: UInt, playerId: UInt)
 
   /*
    * PLAYER EVENTS
@@ -31,7 +60,7 @@ pub contract LavaFlow {
   pub event MintedPlayer(id id: UInt, name name: String, class class: String, intelligence intelligence: UInt, strength strength: UInt, cunning cunning: UInt)
   pub event DestroyedPlayer(id: UInt)
   pub event PlayerMeltedInLava(id: UInt)
-  pub event PlayerHitByBomb(id: UInt)
+  pub event PlayerHitByLavaBomb(id: UInt)
   pub event NextPlayerTurn(gameId: UInt, playerId: UInt)
   pub event AddedPlayerToGame(gameId: UInt, playerId: UInt)
   pub event MovedPlayerToTile(gameId: UInt, playerId: UInt, tilePosition: UInt)
@@ -94,7 +123,7 @@ pub contract LavaFlow {
   // rng is the contract's random number generator
   access(self) let rng: RNG
 
-  // gameboard size
+  // current gameboardSize 
   access(self) let gameboardSize: Int
 
   // Turn at which the lava will start flowing
@@ -328,10 +357,11 @@ pub contract LavaFlow {
     pub let id: UInt
 
     // Item types
-    // 1. LavaSurfboard - save a Player if the lava ever reaches them. Move Player +1 ahead of Lava. Durability = 1...3
-    // 2. VolcanicBomb - hurts the Player on pickup. Disable movement. Durability = 1. Movement = 0.
-    // 3. Jetpack - boosts the Player by a large number of tiles. Durability = 1...3. Move Player +3 ahead. 
-    // 4. LavaSmoke - decreases the Player movement. Durability = 1...3. Movement -1.
+    // 0. LavaSurfboard - save a Player if the lava ever reaches them. Move Player +1 ahead of Lava. Durability = 1...3
+    // 1. LavaTrap - hurts the Player on pickup. Disable movement. Durability = 1. Movement = 0.
+    // 2. Jetpack - boosts the Player by a large number of tiles. Durability = 1...3. Move Player +3 ahead. 
+    // 3. LavaSmoke - decreases the Player movement. Durability = 1...3. Movement -1.
+    // 4. BombShield - protect the player if they are hit by a LavaBomb
     pub let type: UInt
 
     pub var durability: UInt // item usage cap
@@ -356,7 +386,7 @@ pub contract LavaFlow {
     }
   }
 
-  // TilePoint can be traded in for Lava Tokens at the end of a game.
+  // TilePoint can be traded in for Lava Tokens at the end of a game and the player survives with TilePoints.
   // They are acquired throughout the game, picked up on Tiles or received from Quests.
   pub resource TilePoint {
     pub let id: UInt
@@ -368,6 +398,7 @@ pub contract LavaFlow {
     }
 
     destroy() {
+      emit DestroyedTilePoint(id: self.id)
       let tilePointMinter <- LavaFlow.loadTilePointMinter()
       tilePointMinter.decreaseSupply()
       LavaFlow.saveTilePointMinter(minter: <- tilePointMinter)
@@ -1169,7 +1200,7 @@ pub contract LavaFlow {
       // 4. destroy the players trapped inside the lava
       LavaFlow.playerSystem.destroyPlayersInLava(gameId: gameId)
 
-      // 5. run throw volcano bomb & destroy players hit by a volcano bomb
+      // 5. run throw lava bomb & destroy players hit by a lava bomb
       LavaFlow.movementSystem.throwBombAndDestroy(gameId: gameId)
 
     }
@@ -1199,7 +1230,7 @@ pub contract LavaFlow {
 
         // return the player
         game.playerReceivers[playerId]!.deposit(token: <- player)
-        emit PlayerLeftGame(gameId: gameId, playerId: playerId)
+        emit PlayerWonGame(gameId: gameId, playerId: playerId)
 
         // clean the player's game state
         var j = 0
@@ -1363,7 +1394,7 @@ pub contract LavaFlow {
       let activeItem <- player.getActiveItem()
       if activeItem != nil {
 
-        // 1. VolcanicBomb - hurts the Player on pickup. Disable movement. Durability = 1. Movement = 0.
+        // 1. LavaTrap - hurts the Player on pickup. Disable movement. Durability = 1. Movement = 0.
         if activeItem?.type == UInt(1) {
           postItemEffectTilePosition = currentTilePosition
 
@@ -1371,7 +1402,7 @@ pub contract LavaFlow {
         } else if activeItem?.type == UInt(2) {
           postItemEffectTilePosition = postItemEffectTilePosition + UInt(2)
 
-        // 3. Slime - decreases the Player movement. Durability = 1...3. Movement -1.
+        // 3. LavaSmoke - decreases the Player movement. Durability = 1...3. Movement -1.
         } else if activeItem?.type == UInt(3) {
           postItemEffectTilePosition = postItemEffectTilePosition - UInt(1)
         }
@@ -1523,21 +1554,21 @@ pub contract LavaFlow {
         // every time the lava moves, a lava bomb is thrown
         let throwBomb = LavaFlow.rng.runRNG(LavaFlow.lavaBombRNG)
         if (throwBomb == UInt(1)) {
-          let volcanoBombTarget = LavaFlow.rng.runRNG(UInt(LavaFlow.gameboardSize))
+          let lavaBombTarget = LavaFlow.rng.runRNG(UInt(LavaFlow.gameboardSize))
 
-          emit LavaBombThrown(gameId: game.id, targetTile: volcanoBombTarget)
+          emit LavaBombThrown(gameId: game.id, targetTile: lavaBombTarget)
           
           let playerTilePositionKeys = game.playerTilePositions.keys
           // 1. get the target tile
-          let targetTile <- game.gameboard.remove(at: volcanoBombTarget)
+          let targetTile <- game.gameboard.remove(at: lavaBombTarget)
 
           for playerId in playerTilePositionKeys {
             let playerPosition = game.playerTilePositions[playerId]!
-            if playerPosition == volcanoBombTarget {
+            if playerPosition == lavaBombTarget {
               let player <- targetTile.getPlayer(id: playerId)
               let bombShield <- player.getBombShield()
               if bombShield == nil {
-                emit PlayerHitByBomb(id: playerId)
+                emit PlayerHitByLavaBomb(id: playerId)
                 destroy player
 
                 // clean up player data from game world
@@ -1563,7 +1594,7 @@ pub contract LavaFlow {
               }
             }
           }
-          game.gameboard.insert(at: volcanoBombTarget, <- targetTile)
+          game.gameboard.insert(at: lavaBombTarget, <- targetTile)
         }
       }
       LavaFlow.games[gameId] <-! game
@@ -1623,7 +1654,11 @@ pub contract LavaFlow {
   init(){
     self.rng = RNG()
     self.gameboardSize = 50
+<<<<<<< HEAD
     self.lavaTurnStart = UInt(4)
+=======
+    self.lavaTurnStart = UInt(5)
+>>>>>>> a8f7b41082e6551f344fc03d2cace992cf815c0e
     self.games <- {}
 
     self.playerMovementRNG = UInt(6)

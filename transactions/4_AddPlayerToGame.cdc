@@ -1,24 +1,31 @@
 import LavaFlow from 0x01
-// Add a player to the game
-// Note: Both 0x02 and 0x03 have to send this transaction
-// Update the player token id (line 17) and the gameId (line 22)
+
+// Add players to the game
+// 
+// Game instructions:
+// Both 0x02 and 0x03 must individually sign this transaction to send their players into a game
+// Make sure to update the owner's token id (line 24)
+// Make sure to update the game id (line 29)
+// Yes yes, this is not perfect 
+
 transaction {
   let player: @LavaFlow.Player
   let playerCollectionRef: &{LavaFlow.PlayerReceiver}
+
   prepare(acct: AuthAccount) {
     self.playerCollectionRef = acct
       .getCapability(/public/PlayersCollection)!
       .borrow<&{LavaFlow.PlayerReceiver}>()!
-    if(self.playerCollectionRef == nil){
+    if self.playerCollectionRef == nil {
       log("Player collection ref exists")
     }
     let playerCollection <- acct.load<@LavaFlow.PlayersCollection>(from: /storage/PlayersCollection)!
-    self.player <- playerCollection.withdraw(id: UInt(2))
+    self.player <- playerCollection.withdraw(id: UInt(1)) // <-- If you minted the players for accounts 0x02 and 0x03 in asc order, 0x02 has token 1, and 0x03 has token 2 
     acct.save<@LavaFlow.PlayersCollection>(<- playerCollection, to: /storage/PlayersCollection)
   }
 
   execute {
-    LavaFlow.joinGame(gameId: UInt(1), player: <- self.player, playerCollectionRef: self.playerCollectionRef)
+    LavaFlow.joinGame(gameId: UInt(1), player: <- self.player, playerCollectionRef: self.playerCollectionRef) // <-- If you've created one game so far, that first game's id is 1
     log("Player added to Game")
   }
 }
