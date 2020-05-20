@@ -41,7 +41,7 @@
 // The original idea was to implement game development's ECS pattern. However, this was eschewed in favor of storing game state directly on the resources themselves, object-oriented style.
 // Wrong move here. Though it was relatively straight forward in the beginning, having to continually access and put back resources to act upon them became very unwieldy. Because we could not
 // pass in an item by reference to mutate, nor reliably move the resource in and back out into the same variable, our Systems had to pull the resources from the game every time. This involved 
-// OOP does not work here. For future development, it's best to capture the game world state separately, like the ECS pattern, and then modify the resources' attributes.
+// a constant need to pull and return resources. OOP does not work here. For future development, it's best to capture the game world state separately, and then modify the resources' attributes at a separate stage.
 
 pub contract LavaFlow {
   /*
