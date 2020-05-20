@@ -15,7 +15,7 @@
 // Synopsis
 //
 // The adventurers seeking riches are caught in an erupting treasure-filled volcanic dungeon, LavaFlow. 
-// LavaFlow is a board game where players have to escape the lava creeping and lava bombs creeping their way while acquiring as many items and points on their escape. 
+// LavaFlow is an on-chain board game where players have to escape the lava creeping and lava bombs creeping their way while acquiring as many items and points on their escape. 
 // If the lava or bomb lands on a player's tile, instant NFT death if they don't have life-saving items.
 
 // Gameplay
